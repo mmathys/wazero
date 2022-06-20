@@ -55,7 +55,20 @@ package. Here are the defaults:
 * "runtime.*" - supports system-call like functionality `GOARCH=wasm`
 * "syscall/js.*" - supports the JavaScript model `GOOS=js`
 
-## CallImport conventions
+### syscall/js
+
+"syscall/js.*" are host functions for managing the JavaScript object graph,
+including functions to make and finalize objects, arrays and numbers
+(`js.Value`).
+
+Each `js.Value` has a `js.ref`, which is either a numeric literal or an object
+reference depending on its 64-bit bit pattern. When an object, the first 31
+bits are its identifier.
+
+Details beyond this are best looking at the source code of [js.go][5], or its
+unit tests.
+
+## PC_B calling conventions
 
 The assembly `CallImport` instruction doesn't compile signatures to WebAssembly
 function types, invoked by the `call` instruction.
@@ -72,6 +85,21 @@ there are results, the implementation must write those to memory.
 
 For example, `func walltime() (sec int64, nsec int32)` writes its results to
 memory at offsets `sp+8` and `sp+16` respectively.
+
+## Go-defined exported functions
+
+[Several functions][6] differ in calling convention by using WebAssembly type
+signatures instead of the single SP parameter summarized above. Functions used
+by the host have a "wasm_export_" prefix, which is stripped. For example,
+"wasm_export_run" is exported as "run", defined in [rt0_js_wasm.s][7]
+
+Here is an overview of the Go-defined exported functions:
+ * "run" - Accepts "argc" and "argv" i32 params and begins the "wasm_pc_f_loop"
+ * "resume" - Nullary function that resumes execution until it needs an event.
+ * "getsp" - Returns the i32 stack pointer (SP)
+
+Note: the "wasm_export_" prefix is stripped. For example, "wasm_export_run"
+becomes the WebAssembly export "run".
 
 ## User-defined Host Functions
 
@@ -103,3 +131,6 @@ the Go stack.
 [2]: https://github.com/golang/go/blob/go1.19beta1/src/cmd/link/internal/wasm/asm.go
 [3]: https://github.com/WebAssembly/wabt
 [4]: https://github.com/golang/proposal/blob/go1.19beta1/design/42372-wasmexport.md
+[5]: https://github.com/golang/go/blob/go1.19beta1/src/syscall/js/js.go
+[6]: https://github.com/golang/go/blob/go1.19beta1/src/cmd/internal/obj/wasm/wasmobj.go#L794-L812
+[7]: https://github.com/golang/go/blob/go1.19beta1/src/runtime/rt0_js_wasm.s#L17-L21
