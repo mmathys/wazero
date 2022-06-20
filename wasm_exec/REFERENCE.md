@@ -98,9 +98,6 @@ Here is an overview of the Go-defined exported functions:
  * "resume" - Nullary function that resumes execution until it needs an event.
  * "getsp" - Returns the i32 stack pointer (SP)
 
-Note: the "wasm_export_" prefix is stripped. For example, "wasm_export_run"
-becomes the WebAssembly export "run".
-
 ## User-defined Host Functions
 
 Users can define their own "go" module function imports by defining a func
