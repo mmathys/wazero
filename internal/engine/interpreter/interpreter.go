@@ -783,7 +783,10 @@ func (e *moduleEngine) Call(ctx context.Context, m *wasm.CallContext, f *wasm.Fu
 		}
 		// TODO: ^^ Will not fail if the function was imported from a closed module.
 
-		if v := recover(); v != nil {
+		v := recover()
+		if v == wasmruntime.ErrRuntimeSnapshot {
+			snapshot := &wasm.Snapshot{SomeField: "snapshot data"}
+		} else if v != nil {
 			builder := wasmdebug.NewErrorBuilder()
 			frameCount := len(ce.frames)
 			for i := 0; i < frameCount; i++ {
@@ -847,6 +850,7 @@ func (ce *callEngine) callNativeFunc(ctx context.Context, callCtx *wasm.CallCont
 	ce.pushFrame(frame)
 	bodyLen := uint64(len(frame.f.body))
 	for frame.pc < bodyLen {
+		panic(wasmruntime.ErrRuntimeSnapshot)
 		op := frame.f.body[frame.pc]
 		// TODO: add description of each operation/case
 		// on, for example, how many args are used,
