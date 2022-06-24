@@ -27,6 +27,9 @@ var (
 	ErrRuntimeInvalidTableAccess = New("invalid table access")
 	// ErrRuntimeIndirectCallTypeMismatch indicates that the type check failed during call_indirect.
 	ErrRuntimeIndirectCallTypeMismatch = New("indirect call type mismatch")
+
+	// Snapshot
+	ErrRuntimeSnapshot = New("snapshot")
 )
 
 // Error is returned by a wasm.Engine during the execution of Wasm functions, and they indicate that the Wasm runtime
