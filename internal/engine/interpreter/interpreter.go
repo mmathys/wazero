@@ -295,6 +295,7 @@ func (e *engine) lowerIR(ir *wazeroir.CompilationResult) (*code, error) {
 		op := &interpreterOp{kind: original.Kind()}
 		switch o := original.(type) {
 		case *wazeroir.OperationUnreachable:
+		case *wazeroir.OperationNop:
 		case *wazeroir.OperationLabel:
 			labelKey := o.Label.String()
 			address := uint64(len(ret.body))
@@ -929,6 +930,9 @@ func (ce *callEngine) callNativeFunc(ctx context.Context, callCtx *wasm.CallCont
 		switch op.kind {
 		case wazeroir.OperationKindUnreachable:
 			panic(wasmruntime.ErrRuntimeUnreachable)
+		case 0x01:
+			frame.pc++
+			panic(wasmruntime.ErrRuntimeSnapshot)
 		case wazeroir.OperationKindBr:
 			frame.pc = op.us[0]
 		case wazeroir.OperationKindBrIf:

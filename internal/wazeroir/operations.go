@@ -142,6 +142,8 @@ func (o OperationKind) String() (ret string) {
 	switch o {
 	case OperationKindUnreachable:
 		ret = "Unreachable"
+	case OperationKindNop:
+		ret = "Nop"
 	case OperationKindLabel:
 		ret = "Label"
 	case OperationKindBr:
@@ -425,6 +427,7 @@ func (o OperationKind) String() (ret string) {
 const (
 	// OperationKindUnreachable is the kind for OperationUnreachable.
 	OperationKindUnreachable OperationKind = iota
+	OperationKindNop
 	// OperationKindLabel is the kind for OperationLabel.
 	OperationKindLabel
 	// OperationKindBr is the kind for OperationBr.
@@ -809,6 +812,12 @@ type OperationUnreachable struct{}
 // Kind implements Operation.Kind
 func (*OperationUnreachable) Kind() OperationKind {
 	return OperationKindUnreachable
+}
+
+type OperationNop struct{}
+
+func (*OperationNop) Kind() OperationKind {
+	return OperationKindNop
 }
 
 // OperationLabel implements Operation.

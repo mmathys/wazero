@@ -328,7 +328,9 @@ operatorSwitch:
 		)
 		c.markUnreachable()
 	case wasm.OpcodeNop:
-		// Nop is noop!
+		c.emit(
+			&OperationNop{},
+		)
 	case wasm.OpcodeBlock:
 		bt, num, err := wasm.DecodeBlockType(c.types,
 			bytes.NewReader(c.body[c.pc+1:]), c.enabledFeatures)
