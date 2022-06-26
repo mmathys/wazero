@@ -757,6 +757,14 @@ func (e *moduleEngine) InitializeFuncrefGlobals(globals []*wasm.GlobalInstance) 
 	}
 }
 
+func makeSnapshot(ctx context.Context, ce *callEngine, params []uint64) {
+	snapshot := ctx.Value("snapshot").(*wasm.Snapshot)
+	snapshot.Valid = true
+	snapshot.Params = params
+	frame := ce.popFrame()
+	snapshot.Pc = frame.pc
+}
+
 // Call implements the same method as documented on wasm.ModuleEngine.
 func (e *moduleEngine) Call(ctx context.Context, m *wasm.CallContext, f *wasm.FunctionInstance, params ...uint64) (results []uint64, err error) {
 	// Note: The input parameters are pre-validated, so a compiled function is only absent on close. Updates to
@@ -785,7 +793,8 @@ func (e *moduleEngine) Call(ctx context.Context, m *wasm.CallContext, f *wasm.Fu
 
 		v := recover()
 		if v == wasmruntime.ErrRuntimeSnapshot {
-			snapshot := &wasm.Snapshot{SomeField: "snapshot data"}
+			makeSnapshot(ctx, ce, params)
+			err = wasmruntime.ErrRuntimeSnapshot
 		} else if v != nil {
 			builder := wasmdebug.NewErrorBuilder()
 			frameCount := len(ce.frames)
@@ -802,19 +811,68 @@ func (e *moduleEngine) Call(ctx context.Context, m *wasm.CallContext, f *wasm.Fu
 		ce.pushValue(param)
 	}
 
-	ce.callFunction(ctx, m, compiled)
+	ce.callFunction(ctx, m, compiled, nil)
 
 	results = wasm.PopValues(f.Type.ResultNumInUint64, ce.popValue)
 	return
 }
 
-func (ce *callEngine) callFunction(ctx context.Context, callCtx *wasm.CallContext, f *function) {
+func (e *moduleEngine) Resume(ctx context.Context, m *wasm.CallContext, f *wasm.FunctionInstance, snapshot *wasm.Snapshot) (results []uint64, err error) {
+	compiled := e.functions[f.Idx]
+	if compiled == nil { // Lazy check the cause as it could be because the module was already closed.
+		if err = m.FailIfClosed(); err == nil {
+			panic(fmt.Errorf("BUG: %s.codes[%d] was nil before close", e.name, f.Idx))
+		}
+		return
+	}
+
+	paramSignature := f.Type.ParamNumInUint64
+	paramCount := len(snapshot.Params)
+	if paramSignature != paramCount {
+		return nil, fmt.Errorf("expected %d params, but passed %d", paramSignature, paramCount)
+	}
+
+	ce := e.newCallEngine()
+	defer func() {
+		// If the module closed during the call, and the call didn't err for another reason, set an ExitError.
+		if err == nil {
+			err = m.FailIfClosed()
+		}
+		// TODO: ^^ Will not fail if the function was imported from a closed module.
+
+		v := recover()
+		if v == wasmruntime.ErrRuntimeSnapshot {
+			makeSnapshot(ctx, ce, snapshot.Params)
+			err = wasmruntime.ErrRuntimeSnapshot
+		} else if v != nil {
+			builder := wasmdebug.NewErrorBuilder()
+			frameCount := len(ce.frames)
+			for i := 0; i < frameCount; i++ {
+				frame := ce.popFrame()
+				fn := frame.f.source
+				builder.AddFrame(fn.DebugName, fn.ParamTypes(), fn.ResultTypes())
+			}
+			err = builder.FromRecovered(v)
+		}
+	}()
+
+	for _, param := range snapshot.Params {
+		ce.pushValue(param)
+	}
+
+	ce.callFunction(ctx, m, compiled, snapshot)
+
+	results = wasm.PopValues(f.Type.ResultNumInUint64, ce.popValue)
+	return
+}
+
+func (ce *callEngine) callFunction(ctx context.Context, callCtx *wasm.CallContext, f *function, snapshot *wasm.Snapshot) {
 	if f.hostFn != nil {
 		ce.callGoFuncWithStack(ctx, callCtx, f)
 	} else if lsn := f.source.FunctionListener; lsn != nil {
 		ce.callNativeFuncWithListener(ctx, callCtx, f, lsn)
 	} else {
-		ce.callNativeFunc(ctx, callCtx, f)
+		ce.callNativeFunc(ctx, callCtx, f, snapshot)
 	}
 }
 
@@ -837,7 +895,7 @@ func (ce *callEngine) callGoFunc(ctx context.Context, callCtx *wasm.CallContext,
 	return
 }
 
-func (ce *callEngine) callNativeFunc(ctx context.Context, callCtx *wasm.CallContext, f *function) {
+func (ce *callEngine) callNativeFunc(ctx context.Context, callCtx *wasm.CallContext, f *function, snapshot *wasm.Snapshot) {
 	frame := &callFrame{f: f}
 	moduleInst := f.source.Module
 	memoryInst := moduleInst.Memory
@@ -849,8 +907,12 @@ func (ce *callEngine) callNativeFunc(ctx context.Context, callCtx *wasm.CallCont
 	elementInstances := f.source.Module.ElementInstances
 	ce.pushFrame(frame)
 	bodyLen := uint64(len(frame.f.body))
+
+	if snapshot != nil {
+		frame.pc = snapshot.Pc
+	}
+
 	for frame.pc < bodyLen {
-		panic(wasmruntime.ErrRuntimeSnapshot)
 		op := frame.f.body[frame.pc]
 		// TODO: add description of each operation/case
 		// on, for example, how many args are used,
@@ -878,7 +940,7 @@ func (ce *callEngine) callNativeFunc(ctx context.Context, callCtx *wasm.CallCont
 				frame.pc = op.us[0]
 			}
 		case wazeroir.OperationKindCall:
-			ce.callFunction(ctx, callCtx, functions[op.us[0]])
+			ce.callFunction(ctx, callCtx, functions[op.us[0]], nil)
 			frame.pc++
 		case wazeroir.OperationKindCallIndirect:
 			offset := ce.popValue()
@@ -896,7 +958,7 @@ func (ce *callEngine) callNativeFunc(ctx context.Context, callCtx *wasm.CallCont
 				panic(wasmruntime.ErrRuntimeIndirectCallTypeMismatch)
 			}
 
-			ce.callFunction(ctx, callCtx, tf)
+			ce.callFunction(ctx, callCtx, tf, nil)
 			frame.pc++
 		case wazeroir.OperationKindDrop:
 			ce.drop(op.rs[0])
@@ -1197,6 +1259,7 @@ func (ce *callEngine) callNativeFunc(ctx context.Context, callCtx *wasm.CallCont
 				ce.pushValue(math.Float64bits(v))
 			}
 			frame.pc++
+			panic(wasmruntime.ErrRuntimeSnapshot)
 		case wazeroir.OperationKindSub:
 			v2 := ce.popValue()
 			v1 := ce.popValue()
@@ -4286,7 +4349,7 @@ func i32Abs(v uint32) uint32 {
 
 func (ce *callEngine) callNativeFuncWithListener(ctx context.Context, callCtx *wasm.CallContext, f *function, fnl experimental.FunctionListener) context.Context {
 	ctx = fnl.Before(ctx, ce.peekValues(len(f.source.Type.Params)))
-	ce.callNativeFunc(ctx, callCtx, f)
+	ce.callNativeFunc(ctx, callCtx, f, nil)
 	// TODO: This doesn't get the error due to use of panic to propagate them.
 	fnl.After(ctx, nil, ce.peekValues(len(f.source.Type.Results)))
 	return ctx

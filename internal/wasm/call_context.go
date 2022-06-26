@@ -193,6 +193,15 @@ func (f *FunctionInstance) Call(ctx context.Context, params ...uint64) (ret []ui
 	return
 }
 
+func (f *FunctionInstance) Resume(ctx context.Context, snapshot *Snapshot) (ret []uint64, err error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	mod := f.Module
+	ret, err = mod.Engine.Resume(ctx, mod.CallCtx, f, snapshot)
+	return
+}
+
 // ExportedGlobal implements the same method as documented on api.Module.
 func (m *CallContext) ExportedGlobal(name string) api.Global {
 	exp, err := m.module.getExport(name, ExternTypeGlobal)

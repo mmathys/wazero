@@ -606,6 +606,10 @@ func (e *moduleEngine) Call(ctx context.Context, callCtx *wasm.CallContext, f *w
 	return
 }
 
+func (e *moduleEngine) Resume(ctx context.Context, m *wasm.CallContext, f *wasm.FunctionInstance, snapshot *wasm.Snapshot) (results []uint64, err error) {
+	panic("Resume not implemented in compiler")
+}
+
 func NewEngine(enabledFeatures wasm.Features) wasm.Engine {
 	return newEngine(enabledFeatures)
 }
