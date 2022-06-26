@@ -763,6 +763,12 @@ func makeSnapshot(ctx context.Context, ce *callEngine, params []uint64) {
 	snapshot.Params = params
 	frame := ce.popFrame()
 	snapshot.Pc = frame.pc
+	snapshot.Stack = ce.stack
+}
+
+func applySnapshot(snapshot *wasm.Snapshot, frame *callFrame, ce *callEngine) {
+	frame.pc = snapshot.Pc
+	ce.stack = snapshot.Stack
 }
 
 // Call implements the same method as documented on wasm.ModuleEngine.
@@ -909,7 +915,8 @@ func (ce *callEngine) callNativeFunc(ctx context.Context, callCtx *wasm.CallCont
 	bodyLen := uint64(len(frame.f.body))
 
 	if snapshot != nil {
-		frame.pc = snapshot.Pc
+		applySnapshot(snapshot, frame, ce)
+
 	}
 
 	for frame.pc < bodyLen {

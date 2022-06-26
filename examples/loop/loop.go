@@ -50,7 +50,7 @@ loop:
 		case wasmruntime.ErrRuntimeSnapshot:
 			log.Printf("new snapshot: %v\n", snapshot)
 		case nil:
-			fmt.Printf("%s: %d + 3 = %d\n", module.Name(), x, results[0])
+			fmt.Printf("%d + 3 = %d\n", x, results[0])
 			break loop
 		default:
 			log.Panicln(err)

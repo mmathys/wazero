@@ -5,4 +5,5 @@ type Snapshot struct {
 	SomeField string
 	Params    []uint64
 	Pc        uint64
+	Stack     []uint64
 }
