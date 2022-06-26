@@ -757,10 +757,9 @@ func (e *moduleEngine) InitializeFuncrefGlobals(globals []*wasm.GlobalInstance) 
 	}
 }
 
-func makeSnapshot(ctx context.Context, ce *callEngine, params []uint64) {
+func makeSnapshot(ctx context.Context, ce *callEngine) {
 	snapshot := ctx.Value("snapshot").(*wasm.Snapshot)
 	snapshot.Valid = true
-	snapshot.Params = params
 	frame := ce.popFrame()
 	snapshot.Pc = frame.pc
 	snapshot.Stack = ce.stack
@@ -799,7 +798,7 @@ func (e *moduleEngine) Call(ctx context.Context, m *wasm.CallContext, f *wasm.Fu
 
 		v := recover()
 		if v == wasmruntime.ErrRuntimeSnapshot {
-			makeSnapshot(ctx, ce, params)
+			makeSnapshot(ctx, ce)
 			err = wasmruntime.ErrRuntimeSnapshot
 		} else if v != nil {
 			builder := wasmdebug.NewErrorBuilder()
@@ -832,11 +831,13 @@ func (e *moduleEngine) Resume(ctx context.Context, m *wasm.CallContext, f *wasm.
 		return
 	}
 
-	paramSignature := f.Type.ParamNumInUint64
-	paramCount := len(snapshot.Params)
-	if paramSignature != paramCount {
-		return nil, fmt.Errorf("expected %d params, but passed %d", paramSignature, paramCount)
-	}
+	/*
+		paramSignature := f.Type.ParamNumInUint64
+		paramCount := len(snapshot.Params)
+		if paramSignature != paramCount {
+			return nil, fmt.Errorf("expected %d params, but passed %d", paramSignature, paramCount)
+		}
+	*/
 
 	ce := e.newCallEngine()
 	defer func() {
@@ -848,7 +849,7 @@ func (e *moduleEngine) Resume(ctx context.Context, m *wasm.CallContext, f *wasm.
 
 		v := recover()
 		if v == wasmruntime.ErrRuntimeSnapshot {
-			makeSnapshot(ctx, ce, snapshot.Params)
+			makeSnapshot(ctx, ce)
 			err = wasmruntime.ErrRuntimeSnapshot
 		} else if v != nil {
 			builder := wasmdebug.NewErrorBuilder()
@@ -862,9 +863,11 @@ func (e *moduleEngine) Resume(ctx context.Context, m *wasm.CallContext, f *wasm.
 		}
 	}()
 
-	for _, param := range snapshot.Params {
-		ce.pushValue(param)
-	}
+	/*
+		for _, param := range snapshot.Params {
+			ce.pushValue(param)
+		}
+	*/
 
 	ce.callFunction(ctx, m, compiled, snapshot)
 
@@ -916,7 +919,6 @@ func (ce *callEngine) callNativeFunc(ctx context.Context, callCtx *wasm.CallCont
 
 	if snapshot != nil {
 		applySnapshot(snapshot, frame, ce)
-
 	}
 
 	for frame.pc < bodyLen {
