@@ -1,19 +1,14 @@
 (module
   (func (export "add3") (param $x i32) (result i32)
-    local.get $x
+    (local $ret i32) 
     
-    i32.const 1
-    i32.add
-    local.set $x
+    nop
 
-    i32.const 1
-    i32.add
-    local.set $x
+    i32.const 666
+    local.set $ret
+    
+    nop 
 
-    i32.const 1
-    i32.add
-    local.set $x
-
-    local.get $x
+    local.get $ret
   )
 )
