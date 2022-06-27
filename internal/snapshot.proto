@@ -1,0 +1,16 @@
+syntax="proto3";
+
+package main;
+
+option go_package = "./proto";
+
+message Global {
+    uint64 value = 1;
+}
+
+message Snapshot {
+    bool valid = 1;
+	uint64 pc = 2;
+	repeated uint64 stack = 3;
+	repeated Global globals = 4;
+}
