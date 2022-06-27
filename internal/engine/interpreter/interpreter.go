@@ -758,15 +758,16 @@ func (e *moduleEngine) InitializeFuncrefGlobals(globals []*wasm.GlobalInstance) 
 	}
 }
 
-func makeSnapshot(ctx context.Context, ce *callEngine) {
+func makeSnapshot(ctx context.Context, ce *callEngine, moduleInst *wasm.ModuleInstance) {
 	snapshot := ctx.Value("snapshot").(*wasm.Snapshot)
 	snapshot.Valid = true
 	frame := ce.popFrame()
 	snapshot.Pc = frame.pc
 	snapshot.Stack = ce.stack
+	//snapshot.Globals = moduleInst.Globals
 }
 
-func applySnapshot(snapshot *wasm.Snapshot, frame *callFrame, ce *callEngine) {
+func applySnapshot(snapshot *wasm.Snapshot, frame *callFrame, ce *callEngine, moduleInst *wasm.ModuleInstance) {
 	frame.pc = snapshot.Pc
 	ce.stack = snapshot.Stack
 }
@@ -799,7 +800,7 @@ func (e *moduleEngine) Call(ctx context.Context, m *wasm.CallContext, f *wasm.Fu
 
 		v := recover()
 		if v == wasmruntime.ErrRuntimeSnapshot {
-			makeSnapshot(ctx, ce)
+			makeSnapshot(ctx, ce, compiled.source.Module)
 			err = wasmruntime.ErrRuntimeSnapshot
 		} else if v != nil {
 			builder := wasmdebug.NewErrorBuilder()
@@ -850,7 +851,7 @@ func (e *moduleEngine) Resume(ctx context.Context, m *wasm.CallContext, f *wasm.
 
 		v := recover()
 		if v == wasmruntime.ErrRuntimeSnapshot {
-			makeSnapshot(ctx, ce)
+			makeSnapshot(ctx, ce, compiled.source.Module)
 			err = wasmruntime.ErrRuntimeSnapshot
 		} else if v != nil {
 			builder := wasmdebug.NewErrorBuilder()
@@ -919,7 +920,7 @@ func (ce *callEngine) callNativeFunc(ctx context.Context, callCtx *wasm.CallCont
 	bodyLen := uint64(len(frame.f.body))
 
 	if snapshot != nil {
-		applySnapshot(snapshot, frame, ce)
+		applySnapshot(snapshot, frame, ce, moduleInst)
 	}
 
 	for frame.pc < bodyLen {

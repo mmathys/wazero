@@ -56,7 +56,7 @@ loop:
 		// print iteration
 		switch err {
 		case wasmruntime.ErrRuntimeSnapshot:
-			log.Printf("snapshot: pc: %d; stack: %v\n", snapshot.Pc, snapshot.Stack)
+			log.Printf("snapshot: %v\n", snapshot.Format())
 		case nil:
 			fmt.Printf("result: %d\n", results[0])
 			break loop
