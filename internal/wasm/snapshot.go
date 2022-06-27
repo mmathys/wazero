@@ -6,7 +6,7 @@ type Snapshot struct {
 	Valid   bool
 	Pc      uint64
 	Stack   []uint64
-	Globals []uint64
+	Globals []*GlobalInstance
 }
 
 func (snap *Snapshot) Format() string {

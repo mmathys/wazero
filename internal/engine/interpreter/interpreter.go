@@ -764,12 +764,13 @@ func makeSnapshot(ctx context.Context, ce *callEngine, moduleInst *wasm.ModuleIn
 	frame := ce.popFrame()
 	snapshot.Pc = frame.pc
 	snapshot.Stack = ce.stack
-	//snapshot.Globals = moduleInst.Globals
+	snapshot.Globals = moduleInst.Globals
 }
 
 func applySnapshot(snapshot *wasm.Snapshot, frame *callFrame, ce *callEngine, moduleInst *wasm.ModuleInstance) {
 	frame.pc = snapshot.Pc
 	ce.stack = snapshot.Stack
+	moduleInst.Globals = snapshot.Globals
 }
 
 // Call implements the same method as documented on wasm.ModuleEngine.
@@ -908,7 +909,15 @@ func (ce *callEngine) callGoFunc(ctx context.Context, callCtx *wasm.CallContext,
 
 func (ce *callEngine) callNativeFunc(ctx context.Context, callCtx *wasm.CallContext, f *function, snapshot *wasm.Snapshot) {
 	frame := &callFrame{f: f}
+	ce.pushFrame(frame)
+	bodyLen := uint64(len(frame.f.body))
+
 	moduleInst := f.source.Module
+
+	if snapshot != nil {
+		applySnapshot(snapshot, frame, ce, moduleInst)
+	}
+
 	memoryInst := moduleInst.Memory
 	globals := moduleInst.Globals
 	tables := moduleInst.Tables
@@ -916,12 +925,6 @@ func (ce *callEngine) callNativeFunc(ctx context.Context, callCtx *wasm.CallCont
 	functions := f.source.Module.Engine.(*moduleEngine).functions
 	dataInstances := f.source.Module.DataInstances
 	elementInstances := f.source.Module.ElementInstances
-	ce.pushFrame(frame)
-	bodyLen := uint64(len(frame.f.body))
-
-	if snapshot != nil {
-		applySnapshot(snapshot, frame, ce, moduleInst)
-	}
 
 	for frame.pc < bodyLen {
 		op := frame.f.body[frame.pc]
