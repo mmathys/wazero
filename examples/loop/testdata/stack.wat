@@ -1,5 +1,5 @@
 (module
-  (func (export "add3") (param $x i32) (result i32)
+  (func (export "entry") (param $x i32) (result i32)
     local.get $x
     
     i32.const 1

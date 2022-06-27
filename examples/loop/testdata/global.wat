@@ -1,14 +1,9 @@
 (module
+  (global $g (mut i32) (i32.const 1))
   (func (export "entry") (param $x i32) (result i32)
-    (local $ret i32) 
-    
-    nop
-
     i32.const 666
-    local.set $ret
-  
+    global.set $g
     nop
-  
-    local.get $ret
+    global.get $g
   )
 )
