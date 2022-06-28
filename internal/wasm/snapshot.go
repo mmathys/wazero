@@ -14,7 +14,11 @@ type Snapshot struct {
 	Frames  []CallFrame
 }
 
-func (snap *Snapshot) Format() string {
+func (snap *Snapshot) String() string {
 	return fmt.Sprintf("Call Frame: %v, Stack: %v, Globals: %v", snap.Frames, snap.Stack, snap.Globals)
 	//return ""
+}
+
+func (frame CallFrame) String() string {
+	return fmt.Sprintf("Fn %d at %d", frame.FunctionIdx, frame.Pc)
 }
