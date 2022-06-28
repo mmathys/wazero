@@ -774,7 +774,7 @@ func makeSnapshot(ctx context.Context, ce *callEngine, moduleInst *wasm.ModuleIn
 			Pc:          frame.pc,
 			FunctionIdx: frame.f.source.Idx,
 		}
-		snapshot.Frames = append(snapshot.Frames, callFrame)
+		snapshot.Frames = append([]wasm.CallFrame{callFrame}, snapshot.Frames...)
 	}
 
 	snapshot.Stack = ce.stack
