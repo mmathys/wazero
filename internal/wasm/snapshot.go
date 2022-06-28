@@ -2,13 +2,19 @@ package wasm
 
 import "fmt"
 
+type CallFrame struct {
+	Pc          uint64
+	FunctionIdx uint32 // function index
+}
+
 type Snapshot struct {
 	Valid   bool
-	Pc      uint64
 	Stack   []uint64
 	Globals []*GlobalInstance
+	Frames  []CallFrame
 }
 
 func (snap *Snapshot) Format() string {
-	return fmt.Sprintf("Pc: %d, Stack: %v, Globals: %v", snap.Pc, snap.Stack, snap.Globals)
+	return fmt.Sprintf("Call Frame: %v, Stack: %v, Globals: %v", snap.Frames, snap.Stack, snap.Globals)
+	//return ""
 }

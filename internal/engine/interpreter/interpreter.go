@@ -159,6 +159,10 @@ func (ce *callEngine) popFrame() (frame *callFrame) {
 	return
 }
 
+func (ce *callEngine) peekFrame() (frame *callFrame) {
+	return ce.frames[len(ce.frames)-1]
+}
+
 type callFrame struct {
 	// pc is the program counter representing the current position in code.body.
 	pc uint64
@@ -761,14 +765,31 @@ func (e *moduleEngine) InitializeFuncrefGlobals(globals []*wasm.GlobalInstance) 
 func makeSnapshot(ctx context.Context, ce *callEngine, moduleInst *wasm.ModuleInstance) {
 	snapshot := ctx.Value("snapshot").(*wasm.Snapshot)
 	snapshot.Valid = true
-	frame := ce.popFrame()
-	snapshot.Pc = frame.pc
+
+	snapshot.Frames = nil
+	frameCount := len(ce.frames)
+	for i := 0; i < frameCount; i++ {
+		frame := ce.popFrame()
+		callFrame := wasm.CallFrame{
+			Pc:          frame.pc,
+			FunctionIdx: frame.f.source.Idx,
+		}
+		snapshot.Frames = append(snapshot.Frames, callFrame)
+	}
+
 	snapshot.Stack = ce.stack
 	snapshot.Globals = moduleInst.Globals
 }
 
-func applySnapshot(snapshot *wasm.Snapshot, frame *callFrame, ce *callEngine, moduleInst *wasm.ModuleInstance) {
-	frame.pc = snapshot.Pc
+func applySnapshot(snapshot *wasm.Snapshot, e *moduleEngine, ce *callEngine, moduleInst *wasm.ModuleInstance) {
+	ce.frames = nil
+	frameCount := len(snapshot.Frames)
+	for i := 0; i < frameCount; i++ {
+		frame := snapshot.Frames[i]
+		f := e.functions[frame.FunctionIdx]
+		ce.pushFrame(&callFrame{f: f, pc: frame.Pc})
+	}
+
 	ce.stack = snapshot.Stack
 	moduleInst.Globals = snapshot.Globals
 }
@@ -908,15 +929,19 @@ func (ce *callEngine) callGoFunc(ctx context.Context, callCtx *wasm.CallContext,
 }
 
 func (ce *callEngine) callNativeFunc(ctx context.Context, callCtx *wasm.CallContext, f *function, snapshot *wasm.Snapshot) {
-	frame := &callFrame{f: f}
-	ce.pushFrame(frame)
-	bodyLen := uint64(len(frame.f.body))
-
 	moduleInst := f.source.Module
-
 	if snapshot != nil {
-		applySnapshot(snapshot, frame, ce, moduleInst)
+		// restore from snapshot
+		applySnapshot(snapshot, moduleInst.Engine.(*moduleEngine), ce, moduleInst)
+	} else {
+		// create a new call frame
+		newFrame := &callFrame{f: f}
+		ce.pushFrame(newFrame)
 	}
+
+	// frame is the current call frame.
+	frame := ce.peekFrame()
+	bodyLen := uint64(len(frame.f.body))
 
 	memoryInst := moduleInst.Memory
 	globals := moduleInst.Globals
@@ -1276,7 +1301,6 @@ func (ce *callEngine) callNativeFunc(ctx context.Context, callCtx *wasm.CallCont
 				ce.pushValue(math.Float64bits(v))
 			}
 			frame.pc++
-			panic(wasmruntime.ErrRuntimeSnapshot)
 		case wazeroir.OperationKindSub:
 			v2 := ce.popValue()
 			v1 := ce.popValue()
