@@ -1,5 +1,5 @@
 (module
-  (func (export "entry") (param $x i32) (result i32)
+  (func (export "entry") (param $x i32) (param $y i32) (result i32)
     (local $ret i32) 
     
     nop
