@@ -20,5 +20,5 @@ func (snap *Snapshot) String() string {
 }
 
 func (frame CallFrame) String() string {
-	return fmt.Sprintf("Fn %d at %d", frame.FunctionIdx, frame.Pc)
+	return fmt.Sprintf("Fn %d@%d", frame.FunctionIdx, frame.Pc)
 }
