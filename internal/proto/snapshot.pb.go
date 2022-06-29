@@ -20,12 +20,76 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type ValueType int32
+
+const (
+	ValueType_I32       ValueType = 0
+	ValueType_I64       ValueType = 1
+	ValueType_F32       ValueType = 2
+	ValueType_F64       ValueType = 3
+	ValueType_V128      ValueType = 4
+	ValueType_FuncRef   ValueType = 5
+	ValueType_ExternRef ValueType = 6
+)
+
+// Enum value maps for ValueType.
+var (
+	ValueType_name = map[int32]string{
+		0: "I32",
+		1: "I64",
+		2: "F32",
+		3: "F64",
+		4: "V128",
+		5: "FuncRef",
+		6: "ExternRef",
+	}
+	ValueType_value = map[string]int32{
+		"I32":       0,
+		"I64":       1,
+		"F32":       2,
+		"F64":       3,
+		"V128":      4,
+		"FuncRef":   5,
+		"ExternRef": 6,
+	}
+)
+
+func (x ValueType) Enum() *ValueType {
+	p := new(ValueType)
+	*p = x
+	return p
+}
+
+func (x ValueType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ValueType) Descriptor() protoreflect.EnumDescriptor {
+	return file_snapshot_proto_enumTypes[0].Descriptor()
+}
+
+func (ValueType) Type() protoreflect.EnumType {
+	return &file_snapshot_proto_enumTypes[0]
+}
+
+func (x ValueType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ValueType.Descriptor instead.
+func (ValueType) EnumDescriptor() ([]byte, []int) {
+	return file_snapshot_proto_rawDescGZIP(), []int{0}
+}
+
 type Global struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Value uint64 `protobuf:"varint,1,opt,name=value,proto3" json:"value,omitempty"`
+	Type    ValueType `protobuf:"varint,1,opt,name=type,proto3,enum=main.ValueType" json:"type,omitempty"`
+	Mutable bool      `protobuf:"varint,2,opt,name=mutable,proto3" json:"mutable,omitempty"`
+	Value   uint64    `protobuf:"varint,3,opt,name=value,proto3" json:"value,omitempty"`
+	ValHi   uint64    `protobuf:"varint,4,opt,name=valHi,proto3" json:"valHi,omitempty"`
 }
 
 func (x *Global) Reset() {
@@ -60,9 +124,156 @@ func (*Global) Descriptor() ([]byte, []int) {
 	return file_snapshot_proto_rawDescGZIP(), []int{0}
 }
 
+func (x *Global) GetType() ValueType {
+	if x != nil {
+		return x.Type
+	}
+	return ValueType_I32
+}
+
+func (x *Global) GetMutable() bool {
+	if x != nil {
+		return x.Mutable
+	}
+	return false
+}
+
 func (x *Global) GetValue() uint64 {
 	if x != nil {
 		return x.Value
+	}
+	return 0
+}
+
+func (x *Global) GetValHi() uint64 {
+	if x != nil {
+		return x.ValHi
+	}
+	return 0
+}
+
+type Frame struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Pc            uint64 `protobuf:"varint,1,opt,name=pc,proto3" json:"pc,omitempty"`
+	FunctionIndex uint32 `protobuf:"varint,2,opt,name=functionIndex,proto3" json:"functionIndex,omitempty"`
+}
+
+func (x *Frame) Reset() {
+	*x = Frame{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_snapshot_proto_msgTypes[1]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *Frame) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Frame) ProtoMessage() {}
+
+func (x *Frame) ProtoReflect() protoreflect.Message {
+	mi := &file_snapshot_proto_msgTypes[1]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Frame.ProtoReflect.Descriptor instead.
+func (*Frame) Descriptor() ([]byte, []int) {
+	return file_snapshot_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *Frame) GetPc() uint64 {
+	if x != nil {
+		return x.Pc
+	}
+	return 0
+}
+
+func (x *Frame) GetFunctionIndex() uint32 {
+	if x != nil {
+		return x.FunctionIndex
+	}
+	return 0
+}
+
+type Memory struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Buffer []byte `protobuf:"bytes,1,opt,name=buffer,proto3" json:"buffer,omitempty"`
+	Min    uint32 `protobuf:"varint,2,opt,name=min,proto3" json:"min,omitempty"`
+	Cap    uint32 `protobuf:"varint,3,opt,name=cap,proto3" json:"cap,omitempty"`
+	Max    uint32 `protobuf:"varint,4,opt,name=max,proto3" json:"max,omitempty"`
+}
+
+func (x *Memory) Reset() {
+	*x = Memory{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_snapshot_proto_msgTypes[2]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *Memory) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Memory) ProtoMessage() {}
+
+func (x *Memory) ProtoReflect() protoreflect.Message {
+	mi := &file_snapshot_proto_msgTypes[2]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Memory.ProtoReflect.Descriptor instead.
+func (*Memory) Descriptor() ([]byte, []int) {
+	return file_snapshot_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *Memory) GetBuffer() []byte {
+	if x != nil {
+		return x.Buffer
+	}
+	return nil
+}
+
+func (x *Memory) GetMin() uint32 {
+	if x != nil {
+		return x.Min
+	}
+	return 0
+}
+
+func (x *Memory) GetCap() uint32 {
+	if x != nil {
+		return x.Cap
+	}
+	return 0
+}
+
+func (x *Memory) GetMax() uint32 {
+	if x != nil {
+		return x.Max
 	}
 	return 0
 }
@@ -73,15 +284,16 @@ type Snapshot struct {
 	unknownFields protoimpl.UnknownFields
 
 	Valid   bool      `protobuf:"varint,1,opt,name=valid,proto3" json:"valid,omitempty"`
-	Pc      uint64    `protobuf:"varint,2,opt,name=pc,proto3" json:"pc,omitempty"`
-	Stack   []uint64  `protobuf:"varint,3,rep,packed,name=stack,proto3" json:"stack,omitempty"`
-	Globals []*Global `protobuf:"bytes,4,rep,name=globals,proto3" json:"globals,omitempty"`
+	Stack   []uint64  `protobuf:"varint,2,rep,packed,name=stack,proto3" json:"stack,omitempty"`
+	Globals []*Global `protobuf:"bytes,3,rep,name=globals,proto3" json:"globals,omitempty"`
+	Frames  []*Frame  `protobuf:"bytes,4,rep,name=frames,proto3" json:"frames,omitempty"`
+	Memory  *Memory   `protobuf:"bytes,5,opt,name=memory,proto3" json:"memory,omitempty"`
 }
 
 func (x *Snapshot) Reset() {
 	*x = Snapshot{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_snapshot_proto_msgTypes[1]
+		mi := &file_snapshot_proto_msgTypes[3]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -94,7 +306,7 @@ func (x *Snapshot) String() string {
 func (*Snapshot) ProtoMessage() {}
 
 func (x *Snapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_snapshot_proto_msgTypes[1]
+	mi := &file_snapshot_proto_msgTypes[3]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -107,7 +319,7 @@ func (x *Snapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Snapshot.ProtoReflect.Descriptor instead.
 func (*Snapshot) Descriptor() ([]byte, []int) {
-	return file_snapshot_proto_rawDescGZIP(), []int{1}
+	return file_snapshot_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *Snapshot) GetValid() bool {
@@ -115,13 +327,6 @@ func (x *Snapshot) GetValid() bool {
 		return x.Valid
 	}
 	return false
-}
-
-func (x *Snapshot) GetPc() uint64 {
-	if x != nil {
-		return x.Pc
-	}
-	return 0
 }
 
 func (x *Snapshot) GetStack() []uint64 {
@@ -138,21 +343,59 @@ func (x *Snapshot) GetGlobals() []*Global {
 	return nil
 }
 
+func (x *Snapshot) GetFrames() []*Frame {
+	if x != nil {
+		return x.Frames
+	}
+	return nil
+}
+
+func (x *Snapshot) GetMemory() *Memory {
+	if x != nil {
+		return x.Memory
+	}
+	return nil
+}
+
 var File_snapshot_proto protoreflect.FileDescriptor
 
 var file_snapshot_proto_rawDesc = []byte{
 	0x0a, 0x0e, 0x73, 0x6e, 0x61, 0x70, 0x73, 0x68, 0x6f, 0x74, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f,
-	0x12, 0x04, 0x6d, 0x61, 0x69, 0x6e, 0x22, 0x1e, 0x0a, 0x06, 0x47, 0x6c, 0x6f, 0x62, 0x61, 0x6c,
-	0x12, 0x14, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x04, 0x52,
-	0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x22, 0x6e, 0x0a, 0x08, 0x53, 0x6e, 0x61, 0x70, 0x73, 0x68,
-	0x6f, 0x74, 0x12, 0x14, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28,
-	0x08, 0x52, 0x05, 0x76, 0x61, 0x6c, 0x69, 0x64, 0x12, 0x0e, 0x0a, 0x02, 0x70, 0x63, 0x18, 0x02,
-	0x20, 0x01, 0x28, 0x04, 0x52, 0x02, 0x70, 0x63, 0x12, 0x14, 0x0a, 0x05, 0x73, 0x74, 0x61, 0x63,
-	0x6b, 0x18, 0x03, 0x20, 0x03, 0x28, 0x04, 0x52, 0x05, 0x73, 0x74, 0x61, 0x63, 0x6b, 0x12, 0x26,
-	0x0a, 0x07, 0x67, 0x6c, 0x6f, 0x62, 0x61, 0x6c, 0x73, 0x18, 0x04, 0x20, 0x03, 0x28, 0x0b, 0x32,
-	0x0c, 0x2e, 0x6d, 0x61, 0x69, 0x6e, 0x2e, 0x47, 0x6c, 0x6f, 0x62, 0x61, 0x6c, 0x52, 0x07, 0x67,
-	0x6c, 0x6f, 0x62, 0x61, 0x6c, 0x73, 0x42, 0x09, 0x5a, 0x07, 0x2e, 0x2f, 0x70, 0x72, 0x6f, 0x74,
-	0x6f, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x12, 0x04, 0x6d, 0x61, 0x69, 0x6e, 0x22, 0x73, 0x0a, 0x06, 0x47, 0x6c, 0x6f, 0x62, 0x61, 0x6c,
+	0x12, 0x23, 0x0a, 0x04, 0x74, 0x79, 0x70, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x0f,
+	0x2e, 0x6d, 0x61, 0x69, 0x6e, 0x2e, 0x56, 0x61, 0x6c, 0x75, 0x65, 0x54, 0x79, 0x70, 0x65, 0x52,
+	0x04, 0x74, 0x79, 0x70, 0x65, 0x12, 0x18, 0x0a, 0x07, 0x6d, 0x75, 0x74, 0x61, 0x62, 0x6c, 0x65,
+	0x18, 0x02, 0x20, 0x01, 0x28, 0x08, 0x52, 0x07, 0x6d, 0x75, 0x74, 0x61, 0x62, 0x6c, 0x65, 0x12,
+	0x14, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18, 0x03, 0x20, 0x01, 0x28, 0x04, 0x52, 0x05,
+	0x76, 0x61, 0x6c, 0x75, 0x65, 0x12, 0x14, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x48, 0x69, 0x18, 0x04,
+	0x20, 0x01, 0x28, 0x04, 0x52, 0x05, 0x76, 0x61, 0x6c, 0x48, 0x69, 0x22, 0x3d, 0x0a, 0x05, 0x46,
+	0x72, 0x61, 0x6d, 0x65, 0x12, 0x0e, 0x0a, 0x02, 0x70, 0x63, 0x18, 0x01, 0x20, 0x01, 0x28, 0x04,
+	0x52, 0x02, 0x70, 0x63, 0x12, 0x24, 0x0a, 0x0d, 0x66, 0x75, 0x6e, 0x63, 0x74, 0x69, 0x6f, 0x6e,
+	0x49, 0x6e, 0x64, 0x65, 0x78, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x0d, 0x66, 0x75, 0x6e,
+	0x63, 0x74, 0x69, 0x6f, 0x6e, 0x49, 0x6e, 0x64, 0x65, 0x78, 0x22, 0x56, 0x0a, 0x06, 0x4d, 0x65,
+	0x6d, 0x6f, 0x72, 0x79, 0x12, 0x16, 0x0a, 0x06, 0x62, 0x75, 0x66, 0x66, 0x65, 0x72, 0x18, 0x01,
+	0x20, 0x01, 0x28, 0x0c, 0x52, 0x06, 0x62, 0x75, 0x66, 0x66, 0x65, 0x72, 0x12, 0x10, 0x0a, 0x03,
+	0x6d, 0x69, 0x6e, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x03, 0x6d, 0x69, 0x6e, 0x12, 0x10,
+	0x0a, 0x03, 0x63, 0x61, 0x70, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x03, 0x63, 0x61, 0x70,
+	0x12, 0x10, 0x0a, 0x03, 0x6d, 0x61, 0x78, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x03, 0x6d,
+	0x61, 0x78, 0x22, 0xa9, 0x01, 0x0a, 0x08, 0x53, 0x6e, 0x61, 0x70, 0x73, 0x68, 0x6f, 0x74, 0x12,
+	0x14, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x08, 0x52, 0x05,
+	0x76, 0x61, 0x6c, 0x69, 0x64, 0x12, 0x14, 0x0a, 0x05, 0x73, 0x74, 0x61, 0x63, 0x6b, 0x18, 0x02,
+	0x20, 0x03, 0x28, 0x04, 0x52, 0x05, 0x73, 0x74, 0x61, 0x63, 0x6b, 0x12, 0x26, 0x0a, 0x07, 0x67,
+	0x6c, 0x6f, 0x62, 0x61, 0x6c, 0x73, 0x18, 0x03, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x0c, 0x2e, 0x6d,
+	0x61, 0x69, 0x6e, 0x2e, 0x47, 0x6c, 0x6f, 0x62, 0x61, 0x6c, 0x52, 0x07, 0x67, 0x6c, 0x6f, 0x62,
+	0x61, 0x6c, 0x73, 0x12, 0x23, 0x0a, 0x06, 0x66, 0x72, 0x61, 0x6d, 0x65, 0x73, 0x18, 0x04, 0x20,
+	0x03, 0x28, 0x0b, 0x32, 0x0b, 0x2e, 0x6d, 0x61, 0x69, 0x6e, 0x2e, 0x46, 0x72, 0x61, 0x6d, 0x65,
+	0x52, 0x06, 0x66, 0x72, 0x61, 0x6d, 0x65, 0x73, 0x12, 0x24, 0x0a, 0x06, 0x6d, 0x65, 0x6d, 0x6f,
+	0x72, 0x79, 0x18, 0x05, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x0c, 0x2e, 0x6d, 0x61, 0x69, 0x6e, 0x2e,
+	0x4d, 0x65, 0x6d, 0x6f, 0x72, 0x79, 0x52, 0x06, 0x6d, 0x65, 0x6d, 0x6f, 0x72, 0x79, 0x2a, 0x55,
+	0x0a, 0x09, 0x56, 0x61, 0x6c, 0x75, 0x65, 0x54, 0x79, 0x70, 0x65, 0x12, 0x07, 0x0a, 0x03, 0x49,
+	0x33, 0x32, 0x10, 0x00, 0x12, 0x07, 0x0a, 0x03, 0x49, 0x36, 0x34, 0x10, 0x01, 0x12, 0x07, 0x0a,
+	0x03, 0x46, 0x33, 0x32, 0x10, 0x02, 0x12, 0x07, 0x0a, 0x03, 0x46, 0x36, 0x34, 0x10, 0x03, 0x12,
+	0x08, 0x0a, 0x04, 0x56, 0x31, 0x32, 0x38, 0x10, 0x04, 0x12, 0x0b, 0x0a, 0x07, 0x46, 0x75, 0x6e,
+	0x63, 0x52, 0x65, 0x66, 0x10, 0x05, 0x12, 0x0d, 0x0a, 0x09, 0x45, 0x78, 0x74, 0x65, 0x72, 0x6e,
+	0x52, 0x65, 0x66, 0x10, 0x06, 0x42, 0x09, 0x5a, 0x07, 0x2e, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f,
+	0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -167,18 +410,25 @@ func file_snapshot_proto_rawDescGZIP() []byte {
 	return file_snapshot_proto_rawDescData
 }
 
-var file_snapshot_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_snapshot_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_snapshot_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_snapshot_proto_goTypes = []interface{}{
-	(*Global)(nil),   // 0: main.Global
-	(*Snapshot)(nil), // 1: main.Snapshot
+	(ValueType)(0),   // 0: main.ValueType
+	(*Global)(nil),   // 1: main.Global
+	(*Frame)(nil),    // 2: main.Frame
+	(*Memory)(nil),   // 3: main.Memory
+	(*Snapshot)(nil), // 4: main.Snapshot
 }
 var file_snapshot_proto_depIdxs = []int32{
-	0, // 0: main.Snapshot.globals:type_name -> main.Global
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	0, // 0: main.Global.type:type_name -> main.ValueType
+	1, // 1: main.Snapshot.globals:type_name -> main.Global
+	2, // 2: main.Snapshot.frames:type_name -> main.Frame
+	3, // 3: main.Snapshot.memory:type_name -> main.Memory
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_snapshot_proto_init() }
@@ -200,6 +450,30 @@ func file_snapshot_proto_init() {
 			}
 		}
 		file_snapshot_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*Frame); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_snapshot_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*Memory); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_snapshot_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Snapshot); i {
 			case 0:
 				return &v.state
@@ -217,13 +491,14 @@ func file_snapshot_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_snapshot_proto_rawDesc,
-			NumEnums:      0,
-			NumMessages:   2,
+			NumEnums:      1,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_snapshot_proto_goTypes,
 		DependencyIndexes: file_snapshot_proto_depIdxs,
+		EnumInfos:         file_snapshot_proto_enumTypes,
 		MessageInfos:      file_snapshot_proto_msgTypes,
 	}.Build()
 	File_snapshot_proto = out.File

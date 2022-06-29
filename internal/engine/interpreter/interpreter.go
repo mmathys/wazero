@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"io/ioutil"
+	"log"
 	"math"
 	"math/bits"
 	"reflect"
@@ -11,13 +13,17 @@ import (
 	"sync"
 	"unsafe"
 
+	"github.com/tetratelabs/wazero/api"
 	"github.com/tetratelabs/wazero/experimental"
 	"github.com/tetratelabs/wazero/internal/buildoptions"
 	"github.com/tetratelabs/wazero/internal/moremath"
+	"github.com/tetratelabs/wazero/internal/proto"
 	"github.com/tetratelabs/wazero/internal/wasm"
 	"github.com/tetratelabs/wazero/internal/wasmdebug"
 	"github.com/tetratelabs/wazero/internal/wasmruntime"
 	"github.com/tetratelabs/wazero/internal/wazeroir"
+
+	pb "google.golang.org/protobuf/proto"
 )
 
 var callStackCeiling = buildoptions.CallStackCeiling
@@ -780,6 +786,68 @@ func makeSnapshot(ctx context.Context, ce *callEngine, moduleInst *wasm.ModuleIn
 	snapshot.Stack = ce.stack
 	snapshot.Globals = moduleInst.Globals
 	snapshot.Memory = moduleInst.Memory
+
+	globalsPb := []*proto.Global{}
+	for _, global := range snapshot.Globals {
+		globalType := proto.ValueType_I32
+		switch global.Type.ValType {
+		case wasm.ValueTypeI32:
+			globalType = proto.ValueType_I32
+		case wasm.ValueTypeI64:
+			globalType = proto.ValueType_I64
+		case wasm.ValueTypeF32:
+			globalType = proto.ValueType_F32
+		case wasm.ValueTypeF64:
+			globalType = proto.ValueType_F64
+		case 0x7b:
+			globalType = proto.ValueType_V128
+		case 0x70:
+			globalType = proto.ValueType_FuncRef
+		case api.ValueTypeExternref:
+			globalType = proto.ValueType_ExternRef
+		}
+
+		globalPb := &proto.Global{
+			Type:    globalType,
+			Mutable: global.Type.Mutable,
+			Value:   global.Val,
+			ValHi:   global.ValHi,
+		}
+		globalsPb = append(globalsPb, globalPb)
+	}
+
+	framesPb := []*proto.Frame{}
+	for _, frame := range snapshot.Frames {
+		framePb := &proto.Frame{
+			Pc:            frame.Pc,
+			FunctionIndex: frame.FunctionIdx,
+		}
+		framesPb = append(framesPb, framePb)
+	}
+	memoryPb := &proto.Memory{
+		Buffer: snapshot.Memory.Buffer,
+		Min:    snapshot.Memory.Min,
+		Max:    snapshot.Memory.Max,
+		Cap:    snapshot.Memory.Cap,
+	}
+	// protobuf
+	snapshotPb := &proto.Snapshot{
+		Valid:   true,
+		Stack:   snapshot.Stack,
+		Globals: globalsPb,
+		Frames:  framesPb,
+		Memory:  memoryPb,
+	}
+	// write to disk
+	out, err := pb.Marshal(snapshotPb)
+	if err != nil {
+		log.Fatalln("Failed to encode snapshot:", err)
+	}
+	if err := ioutil.WriteFile("snapshot.bin", out, 0644); err != nil {
+		log.Fatalln("Failed to write snapshot:", err)
+	} else {
+		log.Println("exported snapshot:)")
+	}
 }
 
 func applySnapshot(snapshot *wasm.Snapshot, e *moduleEngine, ce *callEngine, moduleInst *wasm.ModuleInstance) {
