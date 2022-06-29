@@ -12,11 +12,11 @@ type Snapshot struct {
 	Stack   []uint64
 	Globals []*GlobalInstance
 	Frames  []CallFrame
+	Memory  *MemoryInstance
 }
 
 func (snap *Snapshot) String() string {
 	return fmt.Sprintf("Call Frame: %v, Stack: %v, Globals: %v", snap.Frames, snap.Stack, snap.Globals)
-	//return ""
 }
 
 func (frame CallFrame) String() string {

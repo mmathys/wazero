@@ -779,6 +779,7 @@ func makeSnapshot(ctx context.Context, ce *callEngine, moduleInst *wasm.ModuleIn
 
 	snapshot.Stack = ce.stack
 	snapshot.Globals = moduleInst.Globals
+	snapshot.Memory = moduleInst.Memory
 }
 
 func applySnapshot(snapshot *wasm.Snapshot, e *moduleEngine, ce *callEngine, moduleInst *wasm.ModuleInstance) {
@@ -792,6 +793,7 @@ func applySnapshot(snapshot *wasm.Snapshot, e *moduleEngine, ce *callEngine, mod
 
 	ce.stack = snapshot.Stack
 	moduleInst.Globals = snapshot.Globals
+	moduleInst.Memory = snapshot.Memory
 }
 
 // Call implements the same method as documented on wasm.ModuleEngine.
