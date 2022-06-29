@@ -845,8 +845,6 @@ func makeSnapshot(ctx context.Context, ce *callEngine, moduleInst *wasm.ModuleIn
 	}
 	if err := ioutil.WriteFile("snapshot.bin", out, 0644); err != nil {
 		log.Fatalln("Failed to write snapshot:", err)
-	} else {
-		log.Println("exported snapshot:)")
 	}
 }
 
@@ -1032,7 +1030,10 @@ func (ce *callEngine) callNativeFunc(ctx context.Context, callCtx *wasm.CallCont
 		case 0x01:
 			frame.pc++
 			if ctx.Value("snapshot") != nil {
-				panic(wasmruntime.ErrRuntimeSnapshot)
+				//makeSnapshot(ctx, ce, moduleInst)
+				if ctx.Value("trap_after_snapshot") == true {
+					panic(wasmruntime.ErrRuntimeSnapshot)
+				}
 			}
 		case wazeroir.OperationKindBr:
 			frame.pc = op.us[0]
@@ -4260,6 +4261,8 @@ func (ce *callEngine) callNativeFunc(ctx context.Context, callCtx *wasm.CallCont
 			frame.pc++
 			frame.pc++
 		}
+
+		// snapshot after every instruction if this is true.
 	}
 	ce.popFrame()
 }
