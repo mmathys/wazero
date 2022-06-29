@@ -963,7 +963,9 @@ func (ce *callEngine) callNativeFunc(ctx context.Context, callCtx *wasm.CallCont
 			panic(wasmruntime.ErrRuntimeUnreachable)
 		case 0x01:
 			frame.pc++
-			panic(wasmruntime.ErrRuntimeSnapshot)
+			if ctx.Value("snapshot") != nil {
+				panic(wasmruntime.ErrRuntimeSnapshot)
+			}
 		case wazeroir.OperationKindBr:
 			frame.pc = op.us[0]
 		case wazeroir.OperationKindBrIf:
