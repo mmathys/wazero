@@ -775,7 +775,7 @@ func makeSnapshot(ctx context.Context, ce *callEngine, moduleInst *wasm.ModuleIn
 	snapshot.Frames = nil
 	frameCount := len(ce.frames)
 	for i := 0; i < frameCount; i++ {
-		frame := ce.popFrame()
+		frame := ce.frames[i]
 		callFrame := wasm.CallFrame{
 			Pc:          frame.pc,
 			FunctionIdx: frame.f.source.Idx,
@@ -786,6 +786,8 @@ func makeSnapshot(ctx context.Context, ce *callEngine, moduleInst *wasm.ModuleIn
 	snapshot.Stack = ce.stack
 	snapshot.Globals = moduleInst.Globals
 	snapshot.Memory = moduleInst.Memory
+
+	log.Printf("snapshot: %v\n", snapshot)
 
 	globalsPb := []*proto.Global{}
 	for _, global := range snapshot.Globals {
@@ -824,11 +826,15 @@ func makeSnapshot(ctx context.Context, ce *callEngine, moduleInst *wasm.ModuleIn
 		}
 		framesPb = append(framesPb, framePb)
 	}
-	memoryPb := &proto.Memory{
-		Buffer: snapshot.Memory.Buffer,
-		Min:    snapshot.Memory.Min,
-		Max:    snapshot.Memory.Max,
-		Cap:    snapshot.Memory.Cap,
+
+	var memoryPb *proto.Memory = nil
+	if snapshot.Memory != nil {
+		memoryPb = &proto.Memory{
+			Buffer: snapshot.Memory.Buffer,
+			Min:    snapshot.Memory.Min,
+			Max:    snapshot.Memory.Max,
+			Cap:    snapshot.Memory.Cap,
+		}
 	}
 	// protobuf
 	snapshotPb := &proto.Snapshot{
@@ -890,7 +896,7 @@ func (e *moduleEngine) Call(ctx context.Context, m *wasm.CallContext, f *wasm.Fu
 
 		v := recover()
 		if v == wasmruntime.ErrRuntimeSnapshot {
-			makeSnapshot(ctx, ce, compiled.source.Module)
+			//makeSnapshot(ctx, ce, compiled.source.Module)
 			err = wasmruntime.ErrRuntimeSnapshot
 		} else if v != nil {
 			builder := wasmdebug.NewErrorBuilder()
@@ -941,7 +947,7 @@ func (e *moduleEngine) Resume(ctx context.Context, m *wasm.CallContext, f *wasm.
 
 		v := recover()
 		if v == wasmruntime.ErrRuntimeSnapshot {
-			makeSnapshot(ctx, ce, compiled.source.Module)
+			//makeSnapshot(ctx, ce, compiled.source.Module)
 			err = wasmruntime.ErrRuntimeSnapshot
 		} else if v != nil {
 			builder := wasmdebug.NewErrorBuilder()
@@ -1029,8 +1035,8 @@ func (ce *callEngine) callNativeFunc(ctx context.Context, callCtx *wasm.CallCont
 			panic(wasmruntime.ErrRuntimeUnreachable)
 		case 0x01:
 			frame.pc++
-			if ctx.Value("snapshot") != nil {
-				//makeSnapshot(ctx, ce, moduleInst)
+			if ctx.Value("snapshot") != nil && ctx.Value("always_snapshot") == false {
+				makeSnapshot(ctx, ce, moduleInst)
 				if ctx.Value("trap_after_snapshot") == true {
 					panic(wasmruntime.ErrRuntimeSnapshot)
 				}
@@ -4263,8 +4269,21 @@ func (ce *callEngine) callNativeFunc(ctx context.Context, callCtx *wasm.CallCont
 		}
 
 		// snapshot after every instruction if this is true.
+		if frame.pc < bodyLen && ctx.Value("always_snapshot") == true {
+			makeSnapshot(ctx, ce, moduleInst)
+			if ctx.Value("trap_after_snapshot") == true {
+				panic(wasmruntime.ErrRuntimeSnapshot)
+			}
+		}
 	}
+
 	ce.popFrame()
+	if frame.pc == bodyLen && ctx.Value("always_snapshot") == true {
+		makeSnapshot(ctx, ce, moduleInst)
+		if ctx.Value("trap_after_snapshot") == true {
+			panic(wasmruntime.ErrRuntimeSnapshot)
+		}
+	}
 }
 
 func wasmCompatMaxFloat32bits(v1, v2 uint32) uint64 {
