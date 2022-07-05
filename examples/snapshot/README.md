@@ -12,11 +12,12 @@ wat2wasm file.wat file.wasm
 
 ```bash
 ./compile.sh call.c # or fib.c
+wasm2wat call.wasm # to inspect generated wasm
 ```
 
-`wasm2wat` is useful to inspect the generated wasm.
-
 ## Test snapshots of wasm files
+
+Change the line `//go:embed testdata/<file>.wasm` to the wasm program you want to test.
 
 If `TrapAfterSnapshot = true`, then a execution breaks after making a snapshot.
 `TrapAfterSnapshot = false` is only used for tracing the execution by printing snapshots.
