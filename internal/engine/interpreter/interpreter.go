@@ -923,7 +923,7 @@ func (e *moduleEngine) Call(ctx context.Context, m *wasm.CallContext, f *wasm.Fu
 		ce.pushValue(param)
 	}
 
-	ce.callFunction(ctx, m, compiled, nil)
+	ce.callFunction(ctx, m, compiled, true)
 
 	results = wasm.PopValues(f.Type.ResultNumInUint64, ce.popValue)
 	return
@@ -976,19 +976,26 @@ func (e *moduleEngine) Resume(ctx context.Context, m *wasm.CallContext, f *wasm.
 		}
 	*/
 
-	ce.callFunction(ctx, m, compiled, snapshot)
+	moduleInst := compiled.source.Module
+	applySnapshot(snapshot, moduleInst.Engine.(*moduleEngine), ce, moduleInst)
+
+	for len(ce.frames) > 0 {
+		curFrame := ce.peekFrame()
+		ce.callFunction(ctx, m, curFrame.f, false)
+		curFrame.pc++
+	}
 
 	results = wasm.PopValues(f.Type.ResultNumInUint64, ce.popValue)
 	return
 }
 
-func (ce *callEngine) callFunction(ctx context.Context, callCtx *wasm.CallContext, f *function, snapshot *wasm.Snapshot) {
+func (ce *callEngine) callFunction(ctx context.Context, callCtx *wasm.CallContext, f *function, createCallFrame bool) {
 	if f.hostFn != nil {
 		ce.callGoFuncWithStack(ctx, callCtx, f)
 	} else if lsn := f.source.FunctionListener; lsn != nil {
 		ce.callNativeFuncWithListener(ctx, callCtx, f, lsn)
 	} else {
-		ce.callNativeFunc(ctx, callCtx, f, snapshot)
+		ce.callNativeFunc(ctx, callCtx, f, createCallFrame)
 	}
 }
 
@@ -1011,12 +1018,10 @@ func (ce *callEngine) callGoFunc(ctx context.Context, callCtx *wasm.CallContext,
 	return
 }
 
-func (ce *callEngine) callNativeFunc(ctx context.Context, callCtx *wasm.CallContext, f *function, snapshot *wasm.Snapshot) {
+func (ce *callEngine) callNativeFunc(ctx context.Context, callCtx *wasm.CallContext, f *function, createCallFrame bool) {
 	moduleInst := f.source.Module
-	if snapshot != nil {
-		// restore from snapshot
-		applySnapshot(snapshot, moduleInst.Engine.(*moduleEngine), ce, moduleInst)
-	} else {
+
+	if createCallFrame {
 		// create a new call frame
 		newFrame := &callFrame{f: f}
 		ce.pushFrame(newFrame)
@@ -1070,7 +1075,7 @@ func (ce *callEngine) callNativeFunc(ctx context.Context, callCtx *wasm.CallCont
 				frame.pc = op.us[0]
 			}
 		case wazeroir.OperationKindCall:
-			ce.callFunction(ctx, callCtx, functions[op.us[0]], nil)
+			ce.callFunction(ctx, callCtx, functions[op.us[0]], true)
 			frame.pc++
 		case wazeroir.OperationKindCallIndirect:
 			offset := ce.popValue()
@@ -1088,7 +1093,7 @@ func (ce *callEngine) callNativeFunc(ctx context.Context, callCtx *wasm.CallCont
 				panic(wasmruntime.ErrRuntimeIndirectCallTypeMismatch)
 			}
 
-			ce.callFunction(ctx, callCtx, tf, nil)
+			ce.callFunction(ctx, callCtx, tf, true)
 			frame.pc++
 		case wazeroir.OperationKindDrop:
 			ce.drop(op.rs[0])
@@ -4287,10 +4292,16 @@ func (ce *callEngine) callNativeFunc(ctx context.Context, callCtx *wasm.CallCont
 	}
 
 	ce.popFrame()
+
 	if ctx.Value("always_snapshot") == true {
-		makeSnapshot(ctx, ce, moduleInst)
 		if ctx.Value("trap_after_snapshot") == true {
+			if len(ce.frames) > 0 {
+				ce.peekFrame().pc++
+			}
+			makeSnapshot(ctx, ce, moduleInst)
 			panic(wasmruntime.ErrRuntimeSnapshot)
+		} else {
+			makeSnapshot(ctx, ce, moduleInst)
 		}
 	}
 }
@@ -4493,7 +4504,7 @@ func i32Abs(v uint32) uint32 {
 
 func (ce *callEngine) callNativeFuncWithListener(ctx context.Context, callCtx *wasm.CallContext, f *function, fnl experimental.FunctionListener) context.Context {
 	ctx = fnl.Before(ctx, ce.peekValues(len(f.source.Type.Params)))
-	ce.callNativeFunc(ctx, callCtx, f, nil)
+	ce.callNativeFunc(ctx, callCtx, f, true)
 	// TODO: This doesn't get the error due to use of panic to propagate them.
 	fnl.After(ctx, nil, ce.peekValues(len(f.source.Type.Results)))
 	return ctx

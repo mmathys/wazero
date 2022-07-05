@@ -41,7 +41,7 @@ func main() {
 	defer r.Close(ctx) // This closes everything this Runtime created.
 
 	// Read arg
-	var x uint64 = 6
+	var x uint64 = 10
 	var y uint64 = 2
 
 	// if snapshotFile is defined, read it and update the snapshot struct.
