@@ -1,2 +1,4 @@
 *.wasm
 *.bin
+fib.wat
+*.trace
