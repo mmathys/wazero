@@ -9,7 +9,7 @@
             "type": "go",
             "request": "launch",
             "mode": "debug",
-            "program": "${workspaceFolder}/examples/loop/loop.go",
+            "program": "${workspaceFolder}/examples/snapshot/snapshot.go",
             "args": [
                 "13",
                 "4",
