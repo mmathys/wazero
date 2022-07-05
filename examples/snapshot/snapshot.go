@@ -13,6 +13,7 @@ import (
 	"github.com/tetratelabs/wazero/internal/wasmruntime"
 )
 
+// After instruction execution
 const AlwaysSnapshot = true
 const TrapAfterSnapshot = true
 
