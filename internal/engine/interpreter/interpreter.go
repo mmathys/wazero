@@ -789,6 +789,15 @@ func makeSnapshot(ctx context.Context, ce *callEngine, moduleInst *wasm.ModuleIn
 
 	log.Printf("snapshot: %v\n", snapshot)
 
+	if ctx.Value("export_snapshot").(bool) {
+		exportSnapshot(ctx)
+		log.Println("exported snapshot")
+	}
+
+}
+
+func exportSnapshot(ctx context.Context) {
+	snapshot := ctx.Value("snapshot").(*wasm.Snapshot)
 	globalsPb := []*proto.Global{}
 	for _, global := range snapshot.Globals {
 		globalType := proto.ValueType_I32
