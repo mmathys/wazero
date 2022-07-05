@@ -780,14 +780,14 @@ func makeSnapshot(ctx context.Context, ce *callEngine, moduleInst *wasm.ModuleIn
 			Pc:          frame.pc,
 			FunctionIdx: frame.f.source.Idx,
 		}
-		snapshot.Frames = append([]wasm.CallFrame{callFrame}, snapshot.Frames...)
+		snapshot.Frames = append(snapshot.Frames, callFrame)
 	}
 
 	snapshot.Stack = ce.stack
 	snapshot.Globals = moduleInst.Globals
 	snapshot.Memory = moduleInst.Memory
 
-	log.Printf("snapshot: %v\n", snapshot)
+	fmt.Printf("snapshot: %v\n", snapshot)
 
 	if ctx.Value("export_snapshot").(bool) {
 		exportSnapshot(ctx)
@@ -4287,7 +4287,7 @@ func (ce *callEngine) callNativeFunc(ctx context.Context, callCtx *wasm.CallCont
 	}
 
 	ce.popFrame()
-	if frame.pc == bodyLen && ctx.Value("always_snapshot") == true {
+	if ctx.Value("always_snapshot") == true {
 		makeSnapshot(ctx, ce, moduleInst)
 		if ctx.Value("trap_after_snapshot") == true {
 			panic(wasmruntime.ErrRuntimeSnapshot)
