@@ -24,4 +24,6 @@ go run snapshot.go # just calculate the result
 go run snapshot.go -trace # for tracing only
 go run snapshot.go -always-snapshot # snapshot after every instruction
 go run snapshot.go -halt # halt after first snapshot
+go run snapshot.go -export # export snapshot as binary
+go run snapshot.go -from-snapshot=snapshot.bin # resume from snapshot 
 ```
