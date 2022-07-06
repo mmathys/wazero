@@ -13,9 +13,9 @@ import (
 // compile time check to ensure CallContext implements api.Module
 var _ api.Module = &CallContext{}
 
-func NewCallContext(ns *Namespace, instance *ModuleInstance, Sys *internalsys.Context) *CallContext {
+func NewCallContext(ns *Namespace, instance *ModuleInstance, sys *internalsys.Context) *CallContext {
 	zero := uint64(0)
-	return &CallContext{memory: instance.Memory, module: instance, ns: ns, Sys: Sys, closed: &zero}
+	return &CallContext{memory: instance.Memory, module: instance, ns: ns, Sys: sys, closed: &zero}
 }
 
 // CallContext is a function call context bound to a module. This is important as one module's functions can call
@@ -115,10 +115,11 @@ func (m *CallContext) close(ctx context.Context, exitCode uint32) (c bool, err e
 	if !atomic.CompareAndSwapUint64(m.closed, 0, closed) {
 		return false, nil
 	}
-	if sysCtx := m.Sys; sysCtx != nil { // ex nil if from ModuleBuilder
-		return true, sysCtx.FS(ctx).Close(ctx)
+	c = true
+	if sysCtx := m.Sys; sysCtx != nil { // nil if from ModuleBuilder
+		err = sysCtx.FS(ctx).Close(ctx)
 	}
-	return true, nil
+	return
 }
 
 // Memory implements the same method as documented on api.Module.

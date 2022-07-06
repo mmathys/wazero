@@ -11,22 +11,22 @@ import (
 func TestAssemblerImpl_EncodeRelativeJump(t *testing.T) {
 	t.Run("error", func(t *testing.T) {
 		tests := []struct {
-			n      *NodeImpl
+			n      *nodeImpl
 			expErr string
 		}{
 			{
-				n:      &NodeImpl{Instruction: B, Types: OperandTypesNoneToBranch},
+				n:      &nodeImpl{instruction: B, types: operandTypesNoneToBranch},
 				expErr: "branch target must be set for B",
 			},
 			{
-				n:      &NodeImpl{Instruction: SUB, Types: OperandTypesNoneToBranch},
+				n:      &nodeImpl{instruction: SUB, types: operandTypesNoneToBranch},
 				expErr: "SUB is unsupported for from:none,to:branch type",
 			},
 		}
 
 		for _, tt := range tests {
 			tc := tt
-			a := NewAssemblerImpl(asm.NilRegister)
+			a := NewAssembler(asm.NilRegister)
 			err := a.encodeRelativeBranch(tc.n)
 			require.EqualError(t, err, tc.expErr)
 		}
@@ -296,7 +296,7 @@ func TestAssemblerImpl_EncodeRelativeJump(t *testing.T) {
 	for _, tt := range tests {
 		tc := tt
 		t.Run(tc.name, func(t *testing.T) {
-			a := NewAssemblerImpl(asm.NilRegister)
+			a := NewAssembler(asm.NilRegister)
 
 			for i := 0; i < tc.instructionsInPreamble; i++ {
 				a.CompileConstToRegister(MOVD, 1000, RegR10)

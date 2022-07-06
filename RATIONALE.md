@@ -303,6 +303,40 @@ and a closer to assembly representation for used by our compiler.
 Note: `microwasm` was never specified formally, and only exists in a historical codebase of wasmtime:
 https://github.com/bytecodealliance/wasmtime/blob/v0.29.0/crates/lightbeam/src/microwasm.rs
 
+## Exit
+
+### Why do we return a `sys.ExitError` on exit code zero?
+
+It may be surprising to find an error returned on success (exit code zero).
+This can be explained easier when you think of function returns: When results
+aren't empty, then you must return an error. This is trickier to explain when
+results are empty, such as the case in the "_start" function in WASI.
+
+The main rationale for returning an exit error even if the code is success is
+that the module is no longer functional. For example, function exports would
+error later. In cases like these, it is better to handle errors where they
+occur.
+
+Luckily, it is not common to exit a module during the "_start" function. For
+example, the only known compilation target that does this is Emscripten. Most,
+such as Rust, TinyGo, or normal wasi-libc, don't. If they did, it would
+invalidate their function exports. This means it is unlikely most compilers
+will change this behavior.
+
+In summary, we return a `sys.ExitError` to the caller whenever we get it, as it
+properly reflects the state of the module, which would be closed on this error.
+
+### Why panic with `sys.ExitError` after a host function exits?
+
+Currently, the only portable way to stop processing code is via panic. For
+example, WebAssembly "trap" instructions, such as divide by zero, are
+implemented via panic. This ensures code isn't executed after it.
+
+When code reaches the WASI `proc_exit` instruction, we need to stop processing.
+Regardless of the exit code, any code invoked after exit would be in an
+inconsistent state. This is likely why unreachable instructions are sometimes
+inserted after exit: https://github.com/emscripten-core/emscripten/issues/12322
+
 ## WASI
 
 Unfortunately, (WASI Snapshot Preview 1)[https://github.com/WebAssembly/WASI/blob/snapshot-01/phases/snapshot/docs.md] is not formally defined enough, and has APIs with ambiguous semantics.
@@ -378,6 +412,34 @@ from a real file descriptor ("/dev/null"). Defaulting to this, vs reading `io.EO
 file descriptors if resources aren't managed properly. In other words, blind copying of defaults isn't wise as it can
 violate isolation or endanger the embedding process. In summary, we try to be similar to normal Go code, but often need
 act differently and document `ModuleConfig` is more about emulating, not necessarily performing real system calls.
+
+## File systems
+
+### Why doesn't wazero implement the working directory?
+
+An early design of wazero's API included a `WithWorkDirFS` which allowed
+control over which file a relative path such as "./config.yml" resolved to,
+independent of the root file system. This intended to help separate concerns
+like mutability of files, but it didn't work and was removed.
+
+Compilers that target wasm act differently with regard to the working
+directory. For example, while `GOOS=js` uses host functions to track the
+working directory, WASI host functions do not. wasi-libc, used by TinyGo,
+tracks working directory changes in compiled wasm instead: initially "/" until
+code calls `chdir`.
+
+The only place wazero can standardize a layered concern is via a host function.
+Since WASI doesn't use host functions to track the working directory, we can't
+standardize the storage and initial value of it.
+
+Meanwhile, code may be able to affect the working directory by compiling
+`chdir` into their main function, using an argument or ENV for the initial
+value (possibly `PWD`). Those unable to control the compiled code should only
+use absolute paths in configuration.
+
+See
+* https://github.com/golang/go/blob/go1.19beta1/src/syscall/fs_js.go#L324
+* https://github.com/WebAssembly/wasi-libc/pull/214#issue-673090117
 
 ### FdPrestatDirName
 

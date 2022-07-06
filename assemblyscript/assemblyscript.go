@@ -27,8 +27,8 @@ import (
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/api"
 	"github.com/tetratelabs/wazero/internal/ieee754"
-	internalsys "github.com/tetratelabs/wazero/internal/sys"
 	"github.com/tetratelabs/wazero/internal/wasm"
+	"github.com/tetratelabs/wazero/sys"
 )
 
 // Instantiate instantiates the "env" module used by AssemblyScript into the runtime default namespace.
@@ -57,12 +57,12 @@ type Builder interface {
 
 	// Compile compiles the "env" module that can instantiated in any namespace (wazero.Namespace).
 	//
-	// Note: This has the same effect as the same function name on wazero.ModuleBuilder.
+	// Note: This has the same effect as the same function on wazero.ModuleBuilder.
 	Compile(context.Context, wazero.CompileConfig) (wazero.CompiledModule, error)
 
 	// Instantiate instantiates the "env" module into the provided namespace.
 	//
-	// Note: This has the same effect as the same function name on wazero.ModuleBuilder.
+	// Note: This has the same effect as the same function on wazero.ModuleBuilder.
 	Instantiate(context.Context, wazero.Namespace) (api.Closer, error)
 }
 
@@ -156,7 +156,7 @@ func (a *assemblyscript) abort(
 	columnNumber uint32,
 ) {
 	if !a.abortMessageDisabled {
-		sysCtx := getSysCtx(mod)
+		sysCtx := mod.(*wasm.CallContext).Sys
 		msg, err := readAssemblyScriptString(ctx, mod, message)
 		if err != nil {
 			return
@@ -167,7 +167,16 @@ func (a *assemblyscript) abort(
 		}
 		_, _ = fmt.Fprintf(sysCtx.Stderr(), "%s at %s:%d:%d\n", msg, fn, lineNumber, columnNumber)
 	}
-	_ = mod.CloseWithExitCode(ctx, 255)
+
+	// AssemblyScript expects the exit code to be 255
+	// See https://github.com/AssemblyScript/assemblyscript/blob/v0.20.13/tests/compiler/wasi/abort.js#L14
+	exitCode := uint32(255)
+
+	// Ensure other callers see the exit code.
+	_ = mod.CloseWithExitCode(ctx, exitCode)
+
+	// Prevent any code from executing after this function.
+	panic(sys.NewExitError(mod.Name(), exitCode))
 }
 
 // trace implements the same named function in AssemblyScript (ex. trace('Hello World!'))
@@ -184,9 +193,9 @@ func (a *assemblyscript) trace(
 	case traceDisabled:
 		return
 	case traceStdout:
-		writer = getSysCtx(mod).Stdout()
+		writer = mod.(*wasm.CallContext).Sys.Stdout()
 	case traceStderr:
-		writer = getSysCtx(mod).Stderr()
+		writer = mod.(*wasm.CallContext).Sys.Stderr()
 	}
 
 	msg, err := readAssemblyScriptString(ctx, mod, message)
@@ -234,10 +243,10 @@ func formatFloat(f float64) string {
 //
 // See https://github.com/AssemblyScript/assemblyscript/blob/fa14b3b03bd4607efa52aaff3132bea0c03a7989/std/assembly/wasi/index.ts#L111
 func (a *assemblyscript) seed(mod api.Module) float64 {
-	randSource := getSysCtx(mod).RandSource()
+	randSource := mod.(*wasm.CallContext).Sys.RandSource()
 	v, err := ieee754.DecodeFloat64(randSource)
 	if err != nil {
-		panic(fmt.Errorf("error reading Module.RandSource: %w", err))
+		panic(fmt.Errorf("error reading random seed: %w", err))
 	}
 	return v
 }
@@ -268,12 +277,4 @@ func decodeUTF16(b []byte) string {
 	}
 
 	return string(utf16.Decode(u16s))
-}
-
-func getSysCtx(mod api.Module) *internalsys.Context {
-	if internal, ok := mod.(*wasm.CallContext); !ok {
-		panic(fmt.Errorf("unsupported wasm.Module implementation: %v", mod))
-	} else {
-		return internal.Sys
-	}
 }

@@ -9,8 +9,15 @@ import (
 
 // Test_main ensures the following will work:
 //
-//	go run cat.go ./test.txt
+//	go run cat.go /test.txt
 func Test_main(t *testing.T) {
-	stdout, _ := maintester.TestMain(t, main, "cat", "./test.txt")
-	require.Equal(t, "greet filesystem\n", stdout)
+	for _, compiler := range []string{"tinygo", "zig-cc"} {
+		compiler := compiler
+		t.Run(compiler, func(t *testing.T) {
+			t.Setenv("WASM_COMPILER", compiler)
+			stdout, stderr := maintester.TestMain(t, main, "cat", "/test.txt")
+			require.Equal(t, "", stderr)
+			require.Equal(t, "greet filesystem\n", stdout)
+		})
+	}
 }

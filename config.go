@@ -394,10 +394,10 @@ type ModuleConfig interface {
 	// See https://linux.die.net/man/3/environ and https://en.wikipedia.org/wiki/Null-terminated_string
 	WithEnv(key, value string) ModuleConfig
 
-	// WithFS assigns the file system to use for any paths beginning at "/". Defaults to not found.
-	// Note: This sets WithWorkDirFS to the same file-system unless already set.
+	// WithFS assigns the file system to use for any paths beginning at "/".
+	// Defaults return fs.ErrNotExist.
 	//
-	// Ex. This sets a read-only, embedded file-system to serve files under the root ("/") and working (".") directories:
+	// Ex. This sets a read-only, embedded file-system:
 	//
 	//	//go:embed testdata/index.html
 	//	var testdataIndex embed.FS
@@ -405,17 +405,38 @@ type ModuleConfig interface {
 	//	rooted, err := fs.Sub(testdataIndex, "testdata")
 	//	require.NoError(t, err)
 	//
-	//	// "index.html" is accessible as both "/index.html" and "./index.html" because we didn't use WithWorkDirFS.
+	//	// "index.html" is accessible as "/index.html".
 	//	config := wazero.NewModuleConfig().WithFS(rooted)
 	//
+	// Ex. This sets a mutable file-system:
+	//
+	//	// Files relative to "/work/appA" are accessible as "/".
+	//	config := wazero.NewModuleConfig().WithFS(os.DirFS("/work/appA"))
+	//
+	// Isolation
+	//
+	// os.DirFS documentation includes important notes about isolation, which
+	// also applies to fs.Sub. As of Go 1.19, the built-in file-systems are not
+	// jailed (chroot). See https://github.com/golang/go/issues/42322
+	//
+	// Working Directory "."
+	//
+	// Relative path resolution, such as "./config.yml" to "/config.yml" or
+	// otherwise, is compiler-specific. See /RATIONALE.md for notes.
 	WithFS(fs.FS) ModuleConfig
 
 	// WithName configures the module name. Defaults to what was decoded or overridden via CompileConfig.WithModuleName.
 	WithName(string) ModuleConfig
 
-	// WithStartFunctions configures the functions to call after the module is instantiated. Defaults to "_start".
+	// WithStartFunctions configures the functions to call after the module is
+	// instantiated. Defaults to "_start".
 	//
-	// Note: If any function doesn't exist, it is skipped. However, all functions that do exist are called in order.
+	// Notes
+	//
+	//	* If any function doesn't exist, it is skipped. However, all functions
+	//	  that do exist are called in order.
+	//	* Some start functions may exit the module during instantiate with a
+	//	  sys.ExitError (ex. emscripten), preventing use of exported functions.
 	WithStartFunctions(...string) ModuleConfig
 
 	// WithStderr configures where standard error (file descriptor 2) is written. Defaults to io.Discard.
@@ -531,20 +552,6 @@ type ModuleConfig interface {
 	//
 	// Note: The caller is responsible to close any io.Reader they supply: It is not closed on api.Module Close.
 	WithRandSource(io.Reader) ModuleConfig
-
-	// WithWorkDirFS indicates the file system to use for any paths beginning at "./". Defaults to the same as WithFS.
-	//
-	// Ex. This sets a read-only, embedded file-system as the root ("/"), and a mutable one as the working directory ("."):
-	//
-	//	//go:embed appA
-	//	var rootFS embed.FS
-	//
-	//	// Files relative to this source under appA are available under "/" and files relative to "/work/appA" under ".".
-	//	config := wazero.NewModuleConfig().WithFS(rootFS).WithWorkDirFS(os.DirFS("/work/appA"))
-	//
-	// Note: os.DirFS documentation includes important notes about isolation, which also applies to fs.Sub. As of Go 1.18,
-	// the built-in file-systems are not jailed (chroot). See https://github.com/golang/go/issues/42322
-	WithWorkDirFS(fs.FS) ModuleConfig
 }
 
 type moduleConfig struct {
@@ -564,7 +571,8 @@ type moduleConfig struct {
 	environ []string
 	// environKeys allow overwriting of existing values.
 	environKeys map[string]int
-	fs          *internalsys.FSConfig
+	// fs is the file system to open files with
+	fs fs.FS
 }
 
 // NewModuleConfig returns a ModuleConfig that can be used for configuring module instantiation.
@@ -572,7 +580,6 @@ func NewModuleConfig() ModuleConfig {
 	return &moduleConfig{
 		startFunctions: []string{"_start"},
 		environKeys:    map[string]int{},
-		fs:             internalsys.NewFSConfig(),
 	}
 }
 
@@ -583,7 +590,6 @@ func (c *moduleConfig) clone() *moduleConfig {
 	for key, value := range c.environKeys {
 		ret.environKeys[key] = value
 	}
-	ret.fs = c.fs.Clone()
 	return &ret
 }
 
@@ -610,7 +616,7 @@ func (c *moduleConfig) WithEnv(key, value string) ModuleConfig {
 // WithFS implements ModuleConfig.WithFS
 func (c *moduleConfig) WithFS(fs fs.FS) ModuleConfig {
 	ret := c.clone()
-	ret.fs = ret.fs.WithFS(fs)
+	ret.fs = fs
 	return ret
 }
 
@@ -698,13 +704,6 @@ func (c *moduleConfig) WithRandSource(source io.Reader) ModuleConfig {
 	return ret
 }
 
-// WithWorkDirFS implements ModuleConfig.WithWorkDirFS
-func (c *moduleConfig) WithWorkDirFS(fs fs.FS) ModuleConfig {
-	ret := c.clone()
-	ret.fs = ret.fs.WithWorkDirFS(fs)
-	return ret
-}
-
 // toSysContext creates a baseline wasm.Context configured by ModuleConfig.
 func (c *moduleConfig) toSysContext() (sysCtx *internalsys.Context, err error) {
 	var environ []string // Intentionally doesn't pre-allocate to reduce logic to default to nil.
@@ -724,11 +723,6 @@ func (c *moduleConfig) toSysContext() (sysCtx *internalsys.Context, err error) {
 		environ = append(environ, key+"="+value)
 	}
 
-	preopens, err := c.fs.Preopens()
-	if err != nil {
-		return nil, err
-	}
-
 	return internalsys.NewContext(
 		math.MaxUint32,
 		c.args,
@@ -740,6 +734,6 @@ func (c *moduleConfig) toSysContext() (sysCtx *internalsys.Context, err error) {
 		c.walltime, c.walltimeResolution,
 		c.nanotime, c.nanotimeResolution,
 		c.nanosleep,
-		preopens,
+		c.fs,
 	)
 }

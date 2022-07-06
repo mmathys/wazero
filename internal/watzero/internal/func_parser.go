@@ -151,6 +151,9 @@ func (p *funcParser) beginInstruction(tokenBytes []byte) (next tokenParser, err 
 	case wasm.OpcodeDropName: // See https://www.w3.org/TR/2019/REC-wasm-core-1-20191205/#-hrefsyntax-instr-parametricmathsfdrop
 		opCode = wasm.OpcodeDrop
 		next = p.beginFieldOrInstruction
+	case wasm.OpcodeUnreachableName: // See https://www.w3.org/TR/2019/REC-wasm-core-1-20191205/#syntax-instr-control
+		opCode = wasm.OpcodeUnreachable
+		next = p.beginFieldOrInstruction
 
 	case wasm.OpcodeF32ConstName: // See https://www.w3.org/TR/2019/REC-wasm-core-1-20191205/#syntax-instr-numeric
 		opCode = wasm.OpcodeF32Const
@@ -189,7 +192,7 @@ func (p *funcParser) beginInstruction(tokenBytes []byte) (next tokenParser, err 
 		p.currentBody = append(p.currentBody, wasm.OpcodeMemorySize, 0x00) // reserved arg0
 		return p.beginFieldOrInstruction, nil
 
-		// Next are sign-extension-ops
+		// next are sign-extension-ops
 		// See https://github.com/WebAssembly/spec/blob/main/proposals/sign-extension-ops/Overview.md
 
 	case wasm.OpcodeI32Extend8SName:
@@ -208,7 +211,7 @@ func (p *funcParser) beginInstruction(tokenBytes []byte) (next tokenParser, err 
 		opCode = wasm.OpcodeI64Extend32S
 		next = p.beginFieldOrInstruction
 
-		// Next are nontrapping-float-to-int-conversion
+		// next are nontrapping-float-to-int-conversion
 		// See https://github.com/WebAssembly/spec/blob/main/proposals/nontrapping-float-to-int-conversion/Overview.md
 
 	case wasm.OpcodeI32TruncSatF32SName:
