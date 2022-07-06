@@ -20,15 +20,8 @@ wasm2wat call.wasm # to inspect generated wasm
 Change the line `//go:embed testdata/<file>.wasm` to the wasm program you want to test.
 
 ```bash
-go run snapshot.go 1 2
+go run snapshot.go # just calculate the result
+go run snapshot.go -trace # for tracing only
+go run snapshot.go -always-snapshot # snapshot after every instruction
+go run snapshot.go -halt # halt after first snapshot
 ```
-
-The args `1` and `2` must be given always.
-
-If `TrapAfterSnapshot = true`, then a execution breaks after making a snapshot.
-`TrapAfterSnapshot = false` is only used for tracing the execution by printing snapshots.
-It won't actually halt the execution.
-
-Option 1: use flags `AlwaysSnapshot = true`. This triggers a snapshot after every wasm instruction.
-
-Option 2: manually insert `nop` instructions by hand. Runtime is snapshotting when seeing a `nop` instruction.
