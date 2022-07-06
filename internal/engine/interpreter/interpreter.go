@@ -982,7 +982,10 @@ func (e *moduleEngine) Resume(ctx context.Context, m *wasm.CallContext, f *wasm.
 	for len(ce.frames) > 0 {
 		curFrame := ce.peekFrame()
 		ce.callFunction(ctx, m, curFrame.f, false)
-		curFrame.pc++
+		if len(ce.frames) > 0 {
+			nextFrame := ce.peekFrame()
+			nextFrame.pc++
+		}
 	}
 
 	results = wasm.PopValues(f.Type.ResultNumInUint64, ce.popValue)
@@ -4283,7 +4286,7 @@ func (ce *callEngine) callNativeFunc(ctx context.Context, callCtx *wasm.CallCont
 		}
 
 		// snapshot after every instruction if this is true.
-		if frame.pc < bodyLen && ctx.Value("always_snapshot") == true {
+		if frame.pc < bodyLen && (ctx.Value("always_snapshot") == true) {
 			makeSnapshot(ctx, ce, moduleInst)
 			if ctx.Value("trap_after_snapshot") == true {
 				panic(wasmruntime.ErrRuntimeSnapshot)
