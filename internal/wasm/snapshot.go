@@ -1,6 +1,10 @@
 package wasm
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/tetratelabs/wazero/internal/sys"
+)
 
 type CallFrame struct {
 	Pc          uint64
@@ -13,10 +17,14 @@ type Snapshot struct {
 	Globals []*GlobalInstance
 	Frames  []CallFrame
 	Memory  *MemoryInstance
+
+	// file system
+	LastFD      uint32
+	OpenedFiles map[uint32]*sys.FileEntry
 }
 
 func (snap *Snapshot) String() string {
-	return fmt.Sprintf("Call Frame: %v, Stack: %v, Globals: %v", snap.Frames, snap.Stack, snap.Globals)
+	return fmt.Sprintf("Call Frame: %v, Stack: %v, Globals: %v, LastFD: %v", snap.Frames, snap.Stack, snap.Globals, snap.LastFD)
 }
 
 func (frame CallFrame) String() string {

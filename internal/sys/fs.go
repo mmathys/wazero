@@ -64,6 +64,22 @@ var emptyFSContext = &FSContext{
 	lastFD:      2,
 }
 
+func (c *FSContext) GetOpenedFiles() map[uint32]*FileEntry {
+	return c.openedFiles
+}
+
+func (c *FSContext) GetLastFD() uint32 {
+	return c.lastFD
+}
+
+func (c *FSContext) SetOpenedFiles(openedFiles map[uint32]*FileEntry) {
+	c.openedFiles = openedFiles
+}
+
+func (c *FSContext) SetLastFD(lastFD uint32) {
+	c.lastFD = lastFD
+}
+
 // NewFSContext returns a mutable context if the fs is not EmptyFS.
 func NewFSContext(fs fs.FS) *FSContext {
 	if fs == EmptyFS {

@@ -18,6 +18,7 @@ import (
 	"github.com/tetratelabs/wazero/internal/buildoptions"
 	"github.com/tetratelabs/wazero/internal/moremath"
 	"github.com/tetratelabs/wazero/internal/proto"
+	"github.com/tetratelabs/wazero/internal/sys"
 	"github.com/tetratelabs/wazero/internal/wasm"
 	"github.com/tetratelabs/wazero/internal/wasmdebug"
 	"github.com/tetratelabs/wazero/internal/wasmruntime"
@@ -768,7 +769,7 @@ func (e *moduleEngine) InitializeFuncrefGlobals(globals []*wasm.GlobalInstance) 
 	}
 }
 
-func makeSnapshot(ctx context.Context, ce *callEngine, moduleInst *wasm.ModuleInstance) {
+func makeSnapshot(ctx context.Context, fsContext *sys.FSContext, ce *callEngine, moduleInst *wasm.ModuleInstance) {
 	snapshot := ctx.Value("snapshot").(*wasm.Snapshot)
 	snapshot.Valid = true
 
@@ -786,6 +787,9 @@ func makeSnapshot(ctx context.Context, ce *callEngine, moduleInst *wasm.ModuleIn
 	snapshot.Stack = ce.stack
 	snapshot.Globals = moduleInst.Globals
 	snapshot.Memory = moduleInst.Memory
+
+	snapshot.LastFD = fsContext.GetLastFD()
+	snapshot.OpenedFiles = fsContext.GetOpenedFiles()
 
 	fmt.Printf("snapshot: %v\n", snapshot)
 
@@ -863,7 +867,7 @@ func exportSnapshot(ctx context.Context) {
 	}
 }
 
-func applySnapshot(snapshot *wasm.Snapshot, e *moduleEngine, ce *callEngine, moduleInst *wasm.ModuleInstance) {
+func applySnapshot(snapshot *wasm.Snapshot, fsContext *sys.FSContext, e *moduleEngine, ce *callEngine, moduleInst *wasm.ModuleInstance) {
 	ce.frames = nil
 	frameCount := len(snapshot.Frames)
 	for i := 0; i < frameCount; i++ {
@@ -875,6 +879,8 @@ func applySnapshot(snapshot *wasm.Snapshot, e *moduleEngine, ce *callEngine, mod
 	ce.stack = snapshot.Stack
 	moduleInst.Globals = snapshot.Globals
 	moduleInst.Memory = snapshot.Memory
+	fsContext.SetLastFD(snapshot.LastFD)
+	fsContext.SetOpenedFiles(snapshot.OpenedFiles)
 }
 
 // Call implements the same method as documented on wasm.ModuleEngine.
@@ -977,7 +983,8 @@ func (e *moduleEngine) Resume(ctx context.Context, m *wasm.CallContext, f *wasm.
 	*/
 
 	moduleInst := compiled.source.Module
-	applySnapshot(snapshot, moduleInst.Engine.(*moduleEngine), ce, moduleInst)
+	fsContext := m.Sys.FS(ctx)
+	applySnapshot(snapshot, fsContext, moduleInst.Engine.(*moduleEngine), ce, moduleInst)
 
 	for len(ce.frames) > 0 {
 		curFrame := ce.peekFrame()
@@ -1018,6 +1025,7 @@ func (ce *callEngine) callGoFunc(ctx context.Context, callCtx *wasm.CallContext,
 		// TODO: This doesn't get the error due to use of panic to propagate them.
 		f.source.FunctionListener.After(ctx, nil, results)
 	}
+
 	return
 }
 
@@ -1041,6 +1049,7 @@ func (ce *callEngine) callNativeFunc(ctx context.Context, callCtx *wasm.CallCont
 	functions := f.source.Module.Engine.(*moduleEngine).functions
 	dataInstances := f.source.Module.DataInstances
 	elementInstances := f.source.Module.ElementInstances
+	fsContext := callCtx.Sys.FS(ctx)
 
 	for frame.pc < bodyLen {
 		op := frame.f.body[frame.pc]
@@ -1053,7 +1062,7 @@ func (ce *callEngine) callNativeFunc(ctx context.Context, callCtx *wasm.CallCont
 		case 0x01:
 			frame.pc++
 			if ctx.Value("snapshot") != nil && ctx.Value("always_snapshot") == false {
-				makeSnapshot(ctx, ce, moduleInst)
+				makeSnapshot(ctx, fsContext, ce, moduleInst)
 				if ctx.Value("trap_after_snapshot") == true {
 					panic(wasmruntime.ErrRuntimeSnapshot)
 				}
@@ -4287,7 +4296,7 @@ func (ce *callEngine) callNativeFunc(ctx context.Context, callCtx *wasm.CallCont
 
 		// snapshot after every instruction if this is true.
 		if frame.pc < bodyLen && (ctx.Value("always_snapshot") == true) {
-			makeSnapshot(ctx, ce, moduleInst)
+			makeSnapshot(ctx, fsContext, ce, moduleInst)
 			if ctx.Value("trap_after_snapshot") == true {
 				panic(wasmruntime.ErrRuntimeSnapshot)
 			}
@@ -4301,10 +4310,10 @@ func (ce *callEngine) callNativeFunc(ctx context.Context, callCtx *wasm.CallCont
 			if len(ce.frames) > 0 {
 				ce.peekFrame().pc++
 			}
-			makeSnapshot(ctx, ce, moduleInst)
+			makeSnapshot(ctx, fsContext, ce, moduleInst)
 			panic(wasmruntime.ErrRuntimeSnapshot)
 		} else {
-			makeSnapshot(ctx, ce, moduleInst)
+			makeSnapshot(ctx, fsContext, ce, moduleInst)
 		}
 	}
 }
