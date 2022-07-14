@@ -20,5 +20,13 @@
             "program": "${workspaceFolder}/examples/snapshot/snapshot.go",
             "args": ["-trace"]
         },
+        {
+            "name": "cat",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/examples/snapshot-wasi/cat.go",
+            "args": ["/test.txt"]
+        },
     ]
 }
