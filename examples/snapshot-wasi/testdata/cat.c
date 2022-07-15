@@ -5,18 +5,16 @@
 #include <string.h>
 #include <unistd.h>
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv) { return 0; }
+
+__attribute__((export_name("entry")))
+int entry() {
   ssize_t n, m;
   char buf[BUFSIZ];
 
-  if (argc != 2) {
-    fprintf(stderr, "usage: %s <from>\n", argv[0]);
-    exit(1);
-  }
-
-  int in = open(argv[1], O_RDONLY);
+  int in = open("test.txt", O_RDONLY);
   if (in < 0) {
-    fprintf(stderr, "error opening input %s: %s\n", argv[1], strerror(errno));
+    fprintf(stderr, "error opening input %s: %s\n", "test.txt", strerror(errno));
     exit(1);
   }
 

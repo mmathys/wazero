@@ -1,0 +1,1 @@
+/usr/local/wasi-sdk/bin/clang -Wl,--no-entry -o cat.wasm cat.c
