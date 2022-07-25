@@ -124,7 +124,7 @@ func (c *FSContext) OpenFile(_ context.Context, name string /* TODO: flags int, 
 		fsOpenPath = name[1:]
 	}
 
-	f, err := os.OpenFile(fsOpenPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(fsOpenPath, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
