@@ -142,8 +142,14 @@ func (ce *callEngine) drop(r *wazeroir.InclusiveRange) {
 	if r == nil {
 		return
 	} else if r.Start == 0 {
+		if len(ce.stack)-1-r.End <= 0 {
+			//log.Panicf("uhh no 1")
+		}
 		ce.stack = ce.stack[:len(ce.stack)-1-r.End]
 	} else {
+		if len(ce.stack)-1-r.End <= 0 {
+			//log.Panicf("uhh no, 2")
+		}
 		newStack := ce.stack[:len(ce.stack)-1-r.End]
 		newStack = append(newStack, ce.stack[len(ce.stack)-r.Start:]...)
 		ce.stack = newStack
@@ -167,6 +173,9 @@ func (ce *callEngine) popFrame() (frame *callFrame) {
 }
 
 func (ce *callEngine) peekFrame() (frame *callFrame) {
+	if len(ce.frames) == 0 {
+		log.Panicln("cannot peek empty stack")
+	}
 	return ce.frames[len(ce.frames)-1]
 }
 
@@ -868,6 +877,7 @@ func exportSnapshot(ctx context.Context) {
 }
 
 func applySnapshot(snapshot *wasm.Snapshot, fsContext *sys.FSContext, e *moduleEngine, ce *callEngine, moduleInst *wasm.ModuleInstance) {
+	log.Panicln("ohnonono")
 	ce.frames = nil
 	frameCount := len(snapshot.Frames)
 	for i := 0; i < frameCount; i++ {
