@@ -4,7 +4,9 @@ import (
 	"context"
 	"io"
 	"io/fs"
+	"log"
 	"math"
+	"os"
 	"sync/atomic"
 	"syscall"
 )
@@ -122,11 +124,17 @@ func (c *FSContext) OpenFile(_ context.Context, name string /* TODO: flags int, 
 		fsOpenPath = name[1:]
 	}
 
-	f, err := c.fs.Open(fsOpenPath)
+	f, err := os.OpenFile(fsOpenPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		return 0, err // Don't wrap the underlying error which is already a PathError!
+		log.Fatal(err)
 	}
 
+	/*
+		f, err := c.fs.Open(fsOpenPath)
+		if err != nil {
+			return 0, err // Don't wrap the underlying error which is already a PathError!
+		}
+	*/
 	newFD := c.nextFD()
 	if newFD == 0 {
 		_ = f.Close()
