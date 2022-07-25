@@ -21,8 +21,8 @@ import (
 var catFS embed.FS
 
 // catWasmTinyGo was compiled from testdata/tinygo/cat.go
-//go:embed testdata/cat.wasm
-var catWasm []byte
+//go:embed testdata/copy.wasm
+var testWasm []byte
 
 // main writes an input file to stdout, just like `cat`.
 //
@@ -74,55 +74,43 @@ func main() {
 	}
 
 	// Compile the WebAssembly module using the default configuration.
-	code, err := r.CompileModule(ctx, catWasm, wazero.NewCompileConfig())
+	code, err := r.CompileModule(ctx, testWasm, wazero.NewCompileConfig())
 	if err != nil {
 		log.Panicln(err)
 	}
 
-	module, err := r.InstantiateModule(ctx, code, config.WithArgs(("wasi")))
-	if err != nil {
-		log.Panicln(err)
-	}
-
-	entry := module.ExportedFunction("entry").(*wasm.FunctionInstance)
-	if err != nil {
-		log.Panicln(err)
-	}
-
-	var results []uint64
-	if snapshot.Valid {
-		results, err = entry.Resume(ctx, snapshot)
-	} else {
-		results, err = entry.Call(ctx)
-	}
-
-	// print iteration
-	switch err {
-	case wasmruntime.ErrRuntimeSnapshot:
-		//log.Printf("snapshot: %v\n", snapshot)
-	case nil:
-		fmt.Printf("result: %d\n", results[0])
-		//break loop
-	default:
-		log.Panicln(err)
-	}
-
-	module.Close(ctx)
-
-	/*
-
-		// InstantiateModule runs the "_start" function, WASI's "main".
-		// * Set the program name (arg[0]) to "wasi"; arg[1] should be "/test.txt".
-		if _, err = r.InstantiateModule(ctx, code, config.WithArgs("wasi", os.Args[1])); err != nil {
-			// Note: Most compilers do not exit the module after running "_start",
-			// unless there was an error. This allows you to call exported functions.
-			if exitErr, ok := err.(*sys.ExitError); ok && exitErr.ExitCode() != 0 {
-				fmt.Fprintf(os.Stderr, "exit_code: %d\n", exitErr.ExitCode())
-			} else if !ok {
-				log.Panicln(err)
-			}
+loop:
+	for {
+		module, err := r.InstantiateModule(context.WithValue(ctx, "trap_after_snapshot", false), code, config.WithArgs(("wasi")))
+		if err != nil {
+			log.Panicln(err)
 		}
-	*/
+
+		entry := module.ExportedFunction("entry").(*wasm.FunctionInstance)
+		if err != nil {
+			log.Panicln(err)
+		}
+
+		var results []uint64
+		if snapshot.Valid {
+			results, err = entry.Resume(ctx, snapshot)
+		} else {
+			results, err = entry.Call(ctx)
+		}
+
+		// print iteration
+		switch err {
+		case wasmruntime.ErrRuntimeSnapshot:
+			log.Printf("snapshot: %v\n", snapshot)
+		case nil:
+			fmt.Printf("result: %d\n", results[0])
+			break loop
+		default:
+			log.Panicln(err)
+		}
+
+		module.Close(ctx)
+	}
 }
 
 func readSnapshot(snapshotFile string, res *wasm.Snapshot) {
