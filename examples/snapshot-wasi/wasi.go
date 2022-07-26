@@ -81,7 +81,9 @@ func main() {
 
 loop:
 	for {
-		module, err := r.InstantiateModule(context.WithValue(ctx, "trap_after_snapshot", false), code, config.WithArgs(("wasi")))
+		modCtx := context.WithValue(ctx, "trap_after_snapshot", false)
+		modCtx = context.WithValue(modCtx, "always_snapshot", false)
+		module, err := r.InstantiateModule(modCtx, code, config.WithArgs(("wasi")))
 		if err != nil {
 			log.Panicln(err)
 		}

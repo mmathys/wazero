@@ -877,7 +877,7 @@ func exportSnapshot(ctx context.Context) {
 }
 
 func applySnapshot(snapshot *wasm.Snapshot, fsContext *sys.FSContext, e *moduleEngine, ce *callEngine, moduleInst *wasm.ModuleInstance) {
-	log.Panicln("ohnonono")
+	//log.Panicln("ohnonono")
 	ce.frames = nil
 	frameCount := len(snapshot.Frames)
 	for i := 0; i < frameCount; i++ {
