@@ -1063,6 +1063,11 @@ func (ce *callEngine) callNativeFunc(ctx context.Context, callCtx *wasm.CallCont
 
 	for frame.pc < bodyLen {
 		op := frame.f.body[frame.pc]
+
+		if ctx.Value("always_snapshot") == true {
+			fmt.Printf("%v %v\n", op.kind.String(), op.us)
+		}
+
 		// TODO: add description of each operation/case
 		// on, for example, how many args are used,
 		// how the stack is modified, etc.
